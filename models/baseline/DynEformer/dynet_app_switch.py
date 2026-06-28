@@ -52,7 +52,7 @@ def reference(X, y, args):
     device = torch.device('cuda:0')
 
     num_ts, num_periods, num_features = X.shape
-    input_size = 4  # encoder输入维度 只包括bw和日期mark
+    input_size = 4  # encoder input dimension: bandwidth plus date markers
     with open(r'../GlobalPooling/pools/global_pool_c{}_s48_s12.pkl'.format(551), 'rb') as f:
         timeFeature_pool = pickle.load(f)
     sFeature = torch.tensor(np.stack(timeFeature_pool.seasonal_pool).T).float().to(device)
@@ -101,9 +101,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--step", "-stp", type=int, default=2)
 
-    parser.add_argument("--dec_seq_len", "-dl", type=int, default=12)  # decoder用到的输入长度
-    parser.add_argument("--out_seq_len", "-ol", type=int, default=24)  # 预测长度
-    parser.add_argument("--enc_seq_len", "-not", type=int, default=24*2)  # 输入训练长度
+    parser.add_argument("--dec_seq_len", "-dl", type=int, default=12)  # decoder context length
+    parser.add_argument("--out_seq_len", "-ol", type=int, default=24)  # prediction length
+    parser.add_argument("--enc_seq_len", "-not", type=int, default=24*2)  # encoder history length
 
     parser.add_argument("--run_test", "-rt", action="store_true", default=True)
 

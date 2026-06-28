@@ -127,7 +127,7 @@ class VaDE(nn.Module):
             Z.append(z1)
             # Y.append(y)
 
-        Z = torch.cat(Z, 0).detach().cpu().numpy()  # 将列表合成一个tensor
+        Z = torch.cat(Z, 0).detach().cpu().numpy()  # merge latent batches
         min_bic = 1e10
         best_gmm =None
         best_n = 0
@@ -221,5 +221,4 @@ class VaDE(nn.Module):
     @staticmethod
     def gaussian_pdf_log(x,mu,log_sigma2):
         return -0.5*(torch.sum(np.log(np.pi*2)+log_sigma2+(x-mu).pow(2)/torch.exp(log_sigma2),1))
-
 

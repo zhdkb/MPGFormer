@@ -25,7 +25,7 @@ MPG-Former formulates cloud workload forecasting as a drift-aware evidence selec
 ├── figures/                # Paper figures and generated analysis figures
 ├── docs/                   # Paper draft and architecture notes
 ├── DATA_GENERATION_GUIDE.md
-├── REPRODUCE_SIX_MODELS_COMMANDS.md
+├── REPRODUCE_ALL_MODELS_COMMANDS.md
 └── requirements.txt
 ```
 
@@ -100,7 +100,7 @@ python train_mpgformer.py \
   --pred_len 24
 ```
 
-More commands for MPG-Former and baselines are summarized in `REPRODUCE_SIX_MODELS_COMMANDS.md`.
+More commands for MPG-Former and baselines are summarized in `REPRODUCE_ALL_MODELS_COMMANDS.md`.
 
 ## Baselines
 

@@ -124,7 +124,7 @@ class VaDE(nn.Module):
             assert F.mse_loss(z1, z2) == 0
             Z.append(z1)
 
-        Z = torch.cat(Z, 0).detach().cpu().numpy()  # 将列表合成一个tensor
+        Z = torch.cat(Z, 0).detach().cpu().numpy()  # merge latent batches
         best_n = self.args.nClusters
 
         gmm = GaussianMixture(
@@ -200,4 +200,3 @@ class VaDE(nn.Module):
     @staticmethod
     def gaussian_pdf_log(x,mu,log_sigma2):
         return -0.5*(torch.sum(np.log(np.pi*2)+log_sigma2+(x-mu).pow(2)/torch.exp(log_sigma2),1))
-

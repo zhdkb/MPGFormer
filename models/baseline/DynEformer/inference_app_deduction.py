@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 
 import sys
 sys.path.append('../')
-sys.path.append('../GlobalPooling')  # 添加路径以找到类
+sys.path.append('../GlobalPooling')  # add path for GlobalPooling classes
 
 from models.baseline.data_process_utils import *
 from models.baseline.global_utils import *
@@ -96,7 +96,7 @@ def inference(X, y, args):
     device = torch.device('cuda:0')
 
     num_ts, num_periods, num_features = X.shape
-    input_size = 4  # encoder输入维度 只包括bw和日期mark
+    input_size = 4  # encoder input dimension: bandwidth plus date markers
     with open(r'../GlobalPooling/vade_search_cluster/global_pool_c551_s48_s12.pkl', 'rb') as f:
         timeFeature_pool = pickle.load(f)
     sFeature = torch.tensor(np.stack(timeFeature_pool.seasonal_pool).T).to(device)
@@ -170,12 +170,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--n_encoder_layers", "-nel", type=int, default=2)
     parser.add_argument("--n_decoder_layers", "-ndl", type=int, default=1)
-    parser.add_argument("--d_model", "-dm", type=int, default=256)  # 嵌入维度
-    parser.add_argument("--nhead", "-nh", type=int, default=8)  # 注意力头数量
+    parser.add_argument("--d_model", "-dm", type=int, default=256)  # embedding dimension
+    parser.add_argument("--nhead", "-nh", type=int, default=8)  # number of attention heads
     parser.add_argument("--dim_feedforward", "-hs", type=int, default=512)
-    parser.add_argument("--dec_seq_len", "-dl", type=int, default=12)  # decoder用到的输入长度
-    parser.add_argument("--out_seq_len", "-ol", type=int, default=24)  # 预测长度
-    parser.add_argument("--enc_seq_len", "-not", type=int, default=24*2)  # 输入训练长度
+    parser.add_argument("--dec_seq_len", "-dl", type=int, default=12)  # decoder context length
+    parser.add_argument("--out_seq_len", "-ol", type=int, default=24)  # prediction length
+    parser.add_argument("--enc_seq_len", "-not", type=int, default=24*2)  # encoder history length
     parser.add_argument("-dropout", type=float, default=0.1)
     parser.add_argument("-activation", type=str, default='relu')
 

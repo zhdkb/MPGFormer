@@ -113,14 +113,14 @@ def transfor_T(df, day_periods=10):  # Transforms data from minute-level to hour
     return res_df
 
 
-def get_newEntity(begin_dt, end_dt, step, num_periods_tmp):  # 找到新加入的应用和app
+def get_newEntity(begin_dt, end_dt, step, num_periods_tmp):  # find newly added applications
     begin_date = datetime.datetime.strptime(begin_dt, "%Y%m%d")
     middle_date = begin_date + datetime.timedelta(days=step-1)
     res = pd.DataFrame(columns=['machine_id', 'name', 'bw_upload', 'time_id', 'dt'])
     while middle_date.strftime("%Y%m%d") <= end_dt:
         data_path = Raw_Data_Path.format(begin_date.strftime("%Y%m%d"), middle_date.strftime("%Y%m%d"))
         data = pickle.load(open(data_path, 'rb'))
-        data = app_filter(data)  # 过滤非主要应用
+        data = app_filter(data)  # filter minor applications
 
         tmp = data.groupby('machine_id').size().reset_index()
         tmp2 = tmp[tmp[0] == num_periods_tmp]
@@ -177,7 +177,7 @@ def discrete_feats_encoder(df, encode_cols, y_col):
     return df
 
 
-def disk_info_explode(data_base):  # 将data_base的disk_info_v2数据进行解析
+def disk_info_explode(data_base):  # parse the disk_info_v2 field
     data_base_dict = data_base.to_dict(orient='records')
     for i, v in enumerate(data_base_dict):
         disk_dict = eval(v['disk_info_v2'])
