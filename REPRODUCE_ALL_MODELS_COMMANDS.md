@@ -13,11 +13,11 @@ This file summarizes commands for `models/MPGFormer` and the baseline model fold
 - SOFTS (`models/baseline/SOFTS`)
 - MICN (`models/baseline/MICN`)
 
-Run from your machine and activate the environment first. Replace `/path/to/MPGFormer_GitHub` with the path where you cloned this repository:
+Run from your machine and activate the environment first. Replace `/path/to/MPGFormer` with the path where you cloned this repository:
 
 ```bash
-cd /path/to/MPGFormer_GitHub
-conda activate DynEformer
+cd /path/to/MPGFormer
+conda activate MPGFormer
 ```
 
 The reproduction scenarios use these files:
@@ -37,7 +37,7 @@ For Azure, the scripts below follow the same target scale convention as DynEform
 Materna follows the Fremer setup: MT-1, MT-2, and MT-3 are prepared as separate datasets. VMs with more than `2%` missing points are filtered, and each trace is split by time span into train/validation/test with a `7:1:2` ratio. Regenerate the arrays with:
 
 ```bash
-cd /path/to/MPGFormer_GitHub
+cd /path/to/MPGFormer
 
 python scripts/prepare_materna_workload_dataset.py \
   --raw_root data/GWA-T-13_Materna-Workload-Traces \
@@ -48,13 +48,13 @@ python scripts/prepare_materna_workload_dataset.py \
 ## 1. MPG-Former
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/MPGFormer
+cd /path/to/MPGFormer/models/MPGFormer
 ```
 
 ECW:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/ECW_08.npy \
   --epochs 300 \
@@ -66,7 +66,7 @@ python train_mpgformer.py \
 App Switch:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/ECW_08.npy \
   --test_data ../../data/ECW_switch.pkl \
@@ -79,7 +79,7 @@ python train_mpgformer.py \
 New Infras.:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/ECW_08.npy \
   --test_data ../../data/ECW_newmac.pkl \
@@ -92,7 +92,7 @@ python train_mpgformer.py \
 New App:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/ECW_08.npy \
   --test_data ../../data/ECW_newapp.pkl \
@@ -105,7 +105,7 @@ python train_mpgformer.py \
 Azure:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/tr_vm_official.npy \
   --test_data ../../data/te_vm_official.npy \
@@ -118,7 +118,7 @@ python train_mpgformer.py \
 Google v1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/tr_google_v1.npy \
   --test_data ../../data/te_google_v1.npy \
@@ -131,7 +131,7 @@ python train_mpgformer.py \
 Materna MT-1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/tr_materna_mt1.npy \
   --test_data ../../data/te_materna_mt1.npy \
@@ -144,7 +144,7 @@ python train_mpgformer.py \
 Materna MT-2:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/tr_materna_mt2.npy \
   --test_data ../../data/te_materna_mt2.npy \
@@ -157,7 +157,7 @@ python train_mpgformer.py \
 Materna MT-3:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/tr_materna_mt3.npy \
   --test_data ../../data/te_materna_mt3.npy \
@@ -183,9 +183,9 @@ Use that printed value as `<BEST_K_...>` in the corresponding pool-build and tra
 Search the ECW Global Pool size:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_search_cluster
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_search_cluster
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python search_azure_k.py \
   --dataX_dir ../../../../data/ECW_08.npy \
   --candidates 100,150,200,250,300,350,400,450,500,551,600,650 \
@@ -200,9 +200,9 @@ python search_azure_k.py \
 Build the ECW Global Pool with the searched paper value `K=551`:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_pooling
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_pooling
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python global_pooling_main.py \
   --dataX_dir ../../../../data/ECW_08.npy \
   --nClusters 551 \
@@ -213,9 +213,9 @@ python global_pooling_main.py \
 ECW:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/DynEformer
+cd /path/to/MPGFormer/models/baseline/DynEformer
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_main.py \
   --num_epoches 300 \
   --batch_size 256
@@ -226,7 +226,7 @@ App Switch:
 Before this test, make sure the ECW K-search and ECW Global Pool build above have already been run. This script evaluates the ECW-trained DynEformer under an application-switch scenario and loads the same ECW `K=551` pool.
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dynet_app_switch.py
 ```
 
@@ -235,7 +235,7 @@ New Infras.:
 Before this test, make sure the ECW K-search and ECW Global Pool build above have already been run. This script evaluates the ECW-trained DynEformer under a new-infrastructure scenario and loads the same ECW `K=551` pool.
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dynet_newmac.py \
   --batch_size 32
 ```
@@ -245,16 +245,16 @@ New App:
 Before this test, make sure the ECW K-search and ECW Global Pool build above have already been run. This script evaluates the ECW-trained DynEformer under a new-application scenario and loads the same ECW `K=551` pool.
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dynet_newadded.py
 ```
 
 Search the Azure Global Pool size:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_search_cluster
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_search_cluster
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python search_azure_k.py \
   --dataX_dir ../../../../data/tr_vm_official.npy \
   --candidates 20,30,40,50,60,80,100,120,150,200,250,300,400,500 \
@@ -269,9 +269,9 @@ python search_azure_k.py \
 Build the Azure Global Pool with `<BEST_K_AZURE>`:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_pooling
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_pooling
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python global_pooling_main.py \
   --dataX_dir ../../../../data/tr_vm_official.npy \
   --nClusters <BEST_K_AZURE> \
@@ -283,9 +283,9 @@ python global_pooling_main.py \
 Azure:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/DynEformer
+cd /path/to/MPGFormer/models/baseline/DynEformer
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_azure_main.py \
   --train_data ../../../data/tr_vm_official.npy \
   --test_data ../../../data/te_vm_official.npy \
@@ -296,9 +296,9 @@ python dyneformer_azure_main.py \
 Search the Google v1 Global Pool size:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_search_cluster
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_search_cluster
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python search_azure_k.py \
   --dataX_dir ../../../../data/tr_google_v1.npy \
   --candidates 10,20,30,40,50,60,80,100,120,150,200,250,300 \
@@ -313,9 +313,9 @@ python search_azure_k.py \
 Build the Google v1 Global Pool with `<BEST_K_GOOGLE_V1>`:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_pooling
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_pooling
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python global_pooling_main.py \
   --dataX_dir ../../../../data/tr_google_v1.npy \
   --nClusters <BEST_K_GOOGLE_V1> \
@@ -327,9 +327,9 @@ python global_pooling_main.py \
 Google v1:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/DynEformer
+cd /path/to/MPGFormer/models/baseline/DynEformer
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_google_main.py \
   --train_data ../../../data/tr_google_v1.npy \
   --test_data ../../../data/te_google_v1.npy \
@@ -340,9 +340,9 @@ python dyneformer_google_main.py \
 Search the Materna MT-1 Global Pool size:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_search_cluster
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_search_cluster
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python search_azure_k.py \
   --dataX_dir ../../../../data/tr_materna_mt1.npy \
   --candidates 10,20,30,40,50,60,80,100,120,150,200,250,300 \
@@ -357,9 +357,9 @@ python search_azure_k.py \
 Build the Materna MT-1 Global Pool with `<BEST_K_MATERNA_MT1>`:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_pooling
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_pooling
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python global_pooling_main.py \
   --dataX_dir ../../../../data/tr_materna_mt1.npy \
   --nClusters <BEST_K_MATERNA_MT1> \
@@ -371,9 +371,9 @@ python global_pooling_main.py \
 Materna MT-1:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/DynEformer
+cd /path/to/MPGFormer/models/baseline/DynEformer
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_google_main.py \
   --train_data ../../../data/tr_materna_mt1.npy \
   --test_data ../../../data/te_materna_mt1.npy \
@@ -384,9 +384,9 @@ python dyneformer_google_main.py \
 Search the Materna MT-2 Global Pool size:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_search_cluster
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_search_cluster
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python search_azure_k.py \
   --dataX_dir ../../../../data/tr_materna_mt2.npy \
   --candidates 10,20,30,40,50,60,80,100,120,150,200,250,300 \
@@ -401,9 +401,9 @@ python search_azure_k.py \
 Build the Materna MT-2 Global Pool with `<BEST_K_MATERNA_MT2>`:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_pooling
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_pooling
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python global_pooling_main.py \
   --dataX_dir ../../../../data/tr_materna_mt2.npy \
   --nClusters <BEST_K_MATERNA_MT2> \
@@ -415,9 +415,9 @@ python global_pooling_main.py \
 Materna MT-2:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/DynEformer
+cd /path/to/MPGFormer/models/baseline/DynEformer
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_google_main.py \
   --train_data ../../../data/tr_materna_mt2.npy \
   --test_data ../../../data/te_materna_mt2.npy \
@@ -428,9 +428,9 @@ python dyneformer_google_main.py \
 Search the Materna MT-3 Global Pool size:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_search_cluster
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_search_cluster
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python search_azure_k.py \
   --dataX_dir ../../../../data/tr_materna_mt3.npy \
   --candidates 10,20,30,40,50,60,80,100,120,150,200,250,300 \
@@ -445,9 +445,9 @@ python search_azure_k.py \
 Build the Materna MT-3 Global Pool with `<BEST_K_MATERNA_MT3>`:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/GlobalPooling/vade_pooling
+cd /path/to/MPGFormer/models/baseline/GlobalPooling/vade_pooling
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python global_pooling_main.py \
   --dataX_dir ../../../../data/tr_materna_mt3.npy \
   --nClusters <BEST_K_MATERNA_MT3> \
@@ -459,9 +459,9 @@ python global_pooling_main.py \
 Materna MT-3:
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/DynEformer
+cd /path/to/MPGFormer/models/baseline/DynEformer
 
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_google_main.py \
   --train_data ../../../data/tr_materna_mt3.npy \
   --test_data ../../../data/te_materna_mt3.npy \
@@ -473,7 +473,7 @@ python dyneformer_google_main.py \
 ## 3. Autoformer
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/auto_informer
+cd /path/to/MPGFormer/models/baseline/auto_informer
 ```
 
 ECW:
@@ -569,7 +569,7 @@ python auto_info_workload_main.py \
 ## 4. Informer
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/Informer
+cd /path/to/MPGFormer/models/baseline/Informer
 ```
 
 ECW:
@@ -667,7 +667,7 @@ python informer_workload_main.py \
 ## 5. Fremer
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/Fremer
+cd /path/to/MPGFormer/models/baseline/Fremer
 ```
 
 ECW:
@@ -772,7 +772,7 @@ python fremer_workload_main.py \
 ## 6. iTransformer
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/iTransformer
+cd /path/to/MPGFormer/models/baseline/iTransformer
 ```
 
 ECW:
@@ -879,7 +879,7 @@ python itransformer_workload_main.py \
 PDF follows the paper's periodicity decoupling idea: each input window is reshaped by several candidate periods, global periodic tokens are modeled with a Transformer branch, local within-period variations are modeled with a convolution branch, and all period branches are combined for the final forecast. The default periods below are adapted to this project's `48 -> 24` workload setting: `24 12 6`.
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/PDF
+cd /path/to/MPGFormer/models/baseline/PDF
 ```
 
 ECW:
@@ -986,13 +986,13 @@ python pdf_workload_main.py \
 TFEGRU follows the paper's time-frequency enhanced GRU design: a frequency-domain enhancement block first strengthens periodic components, then channel-independent GRU modeling and multi-head attention produce the final forecast. The adapted script reports raw-scale MSE, MAE, and SMAPE with the same target-column convention as the other workload models.
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/TFEGRU
+cd /path/to/MPGFormer/models/baseline/TFEGRU
 ```
 
 ECW:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --epochs 300 \
@@ -1003,7 +1003,7 @@ python tfegru_workload_main.py \
 App Switch:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_switch.pkl \
@@ -1015,7 +1015,7 @@ python tfegru_workload_main.py \
 New Infras.:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_newmac.pkl \
@@ -1027,7 +1027,7 @@ python tfegru_workload_main.py \
 New App:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_newapp.pkl \
@@ -1039,7 +1039,7 @@ python tfegru_workload_main.py \
 Azure:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/tr_vm_official.npy \
   --test_data ../../../data/te_vm_official.npy \
@@ -1051,7 +1051,7 @@ python tfegru_workload_main.py \
 Google v1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/tr_google_v1.npy \
   --test_data ../../../data/te_google_v1.npy \
@@ -1063,7 +1063,7 @@ python tfegru_workload_main.py \
 Materna MT-1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/tr_materna_mt1.npy \
   --test_data ../../../data/te_materna_mt1.npy \
@@ -1075,7 +1075,7 @@ python tfegru_workload_main.py \
 Materna MT-2:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/tr_materna_mt2.npy \
   --test_data ../../../data/te_materna_mt2.npy \
@@ -1087,7 +1087,7 @@ python tfegru_workload_main.py \
 Materna MT-3:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python tfegru_workload_main.py \
   --train_data ../../../data/tr_materna_mt3.npy \
   --test_data ../../../data/te_materna_mt3.npy \
@@ -1103,13 +1103,13 @@ python tfegru_workload_main.py \
 SOFTS follows the paper's Series-Core Fusion idea: each variable is embedded as a token, and STAR repeatedly aggregates series information into a compact core and redistributes it back to each series. The adapted script uses the same workload windows, target column, Azure `/10` target scale convention, and raw-scale MSE/MAE/SMAPE reporting as the other project models.
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/SOFTS
+cd /path/to/MPGFormer/models/baseline/SOFTS
 ```
 
 ECW:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --epochs 300 \
@@ -1120,7 +1120,7 @@ python softs_workload_main.py \
 App Switch:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_switch.pkl \
@@ -1132,7 +1132,7 @@ python softs_workload_main.py \
 New Infras.:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_newmac.pkl \
@@ -1144,7 +1144,7 @@ python softs_workload_main.py \
 New App:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_newapp.pkl \
@@ -1156,7 +1156,7 @@ python softs_workload_main.py \
 Azure:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/tr_vm_official.npy \
   --test_data ../../../data/te_vm_official.npy \
@@ -1168,7 +1168,7 @@ python softs_workload_main.py \
 Google v1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/tr_google_v1.npy \
   --test_data ../../../data/te_google_v1.npy \
@@ -1180,7 +1180,7 @@ python softs_workload_main.py \
 Materna MT-1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/tr_materna_mt1.npy \
   --test_data ../../../data/te_materna_mt1.npy \
@@ -1192,7 +1192,7 @@ python softs_workload_main.py \
 Materna MT-2:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/tr_materna_mt2.npy \
   --test_data ../../../data/te_materna_mt2.npy \
@@ -1204,7 +1204,7 @@ python softs_workload_main.py \
 Materna MT-3:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python softs_workload_main.py \
   --train_data ../../../data/tr_materna_mt3.npy \
   --test_data ../../../data/te_materna_mt3.npy \
@@ -1219,13 +1219,13 @@ python softs_workload_main.py \
 MICN follows the paper's multi-scale local and global context modeling design: it first decomposes the sequence into seasonal and trend parts, then uses multi-scale downsampling/upsampling convolution and isometric convolution to capture local details and global correlations. The adapted script uses generated hourly time features for MICN's temporal embedding and reports raw-scale MSE, MAE, and SMAPE under the same target-column convention as the other workload models.
 
 ```bash
-cd /path/to/MPGFormer_GitHub/models/baseline/MICN
+cd /path/to/MPGFormer/models/baseline/MICN
 ```
 
 ECW:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --epochs 300 \
@@ -1236,7 +1236,7 @@ python micn_workload_main.py \
 App Switch:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_switch.pkl \
@@ -1248,7 +1248,7 @@ python micn_workload_main.py \
 New Infras.:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_newmac.pkl \
@@ -1260,7 +1260,7 @@ python micn_workload_main.py \
 New App:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/ECW_08.npy \
   --test_data ../../../data/ECW_newapp.pkl \
@@ -1272,7 +1272,7 @@ python micn_workload_main.py \
 Azure:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/tr_vm_official.npy \
   --test_data ../../../data/te_vm_official.npy \
@@ -1284,7 +1284,7 @@ python micn_workload_main.py \
 Google v1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/tr_google_v1.npy \
   --test_data ../../../data/te_google_v1.npy \
@@ -1296,7 +1296,7 @@ python micn_workload_main.py \
 Materna MT-1:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/tr_materna_mt1.npy \
   --test_data ../../../data/te_materna_mt1.npy \
@@ -1308,7 +1308,7 @@ python micn_workload_main.py \
 Materna MT-2:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/tr_materna_mt2.npy \
   --test_data ../../../data/te_materna_mt2.npy \
@@ -1320,7 +1320,7 @@ python micn_workload_main.py \
 Materna MT-3:
 
 ```bash
-PYTHONPATH=/path/to/MPGFormer_GitHub \
+PYTHONPATH=/path/to/MPGFormer \
 python micn_workload_main.py \
   --train_data ../../../data/tr_materna_mt3.npy \
   --test_data ../../../data/te_materna_mt3.npy \

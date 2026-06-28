@@ -11,12 +11,12 @@ The first feature channel is the target workload. The remaining channels are use
 Unless otherwise specified, run the commands from the repository root:
 
 ```bash
-cd /path/to/MPGFormer_GitHub
-conda activate DynEformer
+cd /path/to/MPGFormer
+conda activate MPGFormer
 mkdir -p data external
 ```
 
-Replace `/path/to/MPGFormer_GitHub` with your local clone path.
+Replace `/path/to/MPGFormer` with your local clone path.
 
 ## Processed Files
 
