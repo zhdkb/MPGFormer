@@ -1,14 +1,16 @@
 # Dataset Preparation Guide
 
-This document explains how to regenerate the processed workload files expected by the training scripts. All models in this repository use the same tensor convention:
+This guide explains how to regenerate the processed workload files expected by MPG-Former and the adapted baselines.
+
+All models use the same tensor convention:
 
 ```text
 [num_series, num_periods, num_features]
 ```
 
-The first feature channel is the target workload. The remaining channels are used as dynamic covariates or static/context features, depending on the dataset.
+The first feature channel is the forecasting target. The remaining channels are dynamic covariates or optional static/context features, depending on the dataset.
 
-Unless otherwise specified, run the commands from the repository root:
+Run all commands from the repository root unless otherwise specified:
 
 ```bash
 cd /path/to/MPGFormer
@@ -16,34 +18,24 @@ conda activate MPGFormer
 mkdir -p data external
 ```
 
-Replace `/path/to/MPGFormer` with your local clone path.
+## Expected Processed Files
 
-## Processed Files
-
-| Output file | Source | Preparation script |
+| Dataset | Required processed files | Source/preparation |
 | --- | --- | --- |
-| `ECW_08.npy`, `ECW_newmac.pkl`, `ECW_newapp.pkl`, `Task_ID_Dict.pkl` | ECW workload data used by DynEformer / One for All | Preprocessed files from the original ECW package |
-| `tr_vm_official.npy`, `te_vm_official.npy` | Microsoft Azure Public Dataset VM CPU traces | `scripts/prepare_azure_vm_dataset.py` |
-| `tr_google_v1.npy`, `te_google_v1.npy` | Google Cluster Trace v1 | `scripts/prepare_google_cluster_dataset.py` |
-| `tr_materna_mt1.npy`, `va_materna_mt1.npy`, `te_materna_mt1.npy` | GWA-T-13 Materna trace 1 | `scripts/prepare_materna_workload_dataset.py` |
-| `tr_materna_mt2.npy`, `va_materna_mt2.npy`, `te_materna_mt2.npy` | GWA-T-13 Materna trace 2 | `scripts/prepare_materna_workload_dataset.py` |
-| `tr_materna_mt3.npy`, `va_materna_mt3.npy`, `te_materna_mt3.npy` | GWA-T-13 Materna trace 3 | `scripts/prepare_materna_workload_dataset.py` |
+| ECW | `data/ECW_08.npy`, `data/ECW_newmac.pkl`, `data/ECW_newapp.pkl`, `data/Task_ID_Dict.pkl` | Preprocessed ECW files from the DynEformer/One for All package |
+| Microsoft Azure | `data/tr_vm_official.npy`, `data/te_vm_official.npy` | `scripts/prepare_azure_vm_dataset.py` |
+| Google v1 | `data/tr_google_v1.npy`, `data/te_google_v1.npy` | `scripts/prepare_google_cluster_dataset.py` |
+| Materna MT-1 | `data/tr_materna_mt1.npy`, `data/va_materna_mt1.npy`, `data/te_materna_mt1.npy` | `scripts/prepare_materna_workload_dataset.py` |
+| Materna MT-2 | `data/tr_materna_mt2.npy`, `data/va_materna_mt2.npy`, `data/te_materna_mt2.npy` | `scripts/prepare_materna_workload_dataset.py` |
+| Materna MT-3 | `data/tr_materna_mt3.npy`, `data/va_materna_mt3.npy`, `data/te_materna_mt3.npy` | `scripts/prepare_materna_workload_dataset.py` |
 
 ## ECW Workload Files
 
-The ECW files are:
+The ECW files are already preprocessed in the original DynEformer/One for All data package. They are not redistributed here because the raw business logs and machine metadata are external to this repository.
 
-```text
-data/ECW_08.npy
-data/ECW_newmac.pkl
-data/ECW_newapp.pkl
-data/Task_ID_Dict.pkl
-```
-
-These files correspond to the main ECW setting, New Infras., New App, and the task-ID dictionary used by the ECW preprocessing pipeline. The raw ECW business logs and machine metadata are not redistributed in this repository. To reproduce ECW experiments, copy the preprocessed files from the original ECW/DynEformer data package:
+Copy the processed files into `data/`:
 
 ```bash
-mkdir -p data
 cp /path/to/original_ecw/ECW_08.npy data/
 cp /path/to/original_ecw/ECW_newmac.pkl data/
 cp /path/to/original_ecw/ECW_newapp.pkl data/
@@ -60,37 +52,32 @@ ECW_newapp.pkl   -> (11, 720, 16)
 
 ## Microsoft Azure VM CPU
 
-The Azure VM CPU traces come from the Microsoft Azure Public Dataset:
+The Azure VM CPU traces are from the Microsoft Azure Public Dataset:
 
 ```bash
 git clone https://github.com/Azure/AzurePublicDataset.git external/AzurePublicDataset
 ```
 
-Generate the processed arrays:
+The preparation script reads the official link file from `external/AzurePublicDataset/` and downloads VM CPU `.csv.gz` files to `external/azure_vm_cpu_readings/`.
+
+Automatic download and preprocessing:
 
 ```bash
 python scripts/prepare_azure_vm_dataset.py \
   --version v1 \
+  --download true \
   --num_files 1 \
-  --max_vms_to_track 2000 \
   --max_segments 800 \
   --train_ratio 0.8
 ```
 
-If the raw `.csv.gz` files have already been downloaded, place them under:
-
-```text
-external/azure_vm_cpu_readings/
-```
-
-Then run:
+Offline preprocessing, if the `.csv.gz` files have already been placed in `external/azure_vm_cpu_readings/`:
 
 ```bash
 python scripts/prepare_azure_vm_dataset.py \
   --version v1 \
   --download false \
   --num_files 1 \
-  --max_vms_to_track 2000 \
   --max_segments 800 \
   --train_ratio 0.8
 ```
@@ -102,27 +89,29 @@ data/tr_vm_official.npy
 data/te_vm_official.npy
 ```
 
+The generated Azure tensors use the feature layout `[workload, day, hour, minute]`.
+
 ## Google Cluster Trace v1
 
-The Google Cluster Trace v1 data can be obtained from the official Google cluster-data repository:
+Google Cluster Trace v1 can be downloaded directly from the official public storage URL used in `scripts/prepare_google_cluster_dataset.py`.
 
-```bash
-git clone https://github.com/google/cluster-data.git external/google_cluster_data
-```
-
-Place the raw trace files under:
-
-```text
-external/google_cluster_data_raw/
-```
-
-Then generate the processed arrays:
+Automatic download and preprocessing:
 
 ```bash
 python scripts/prepare_google_cluster_dataset.py \
-  --raw_root external/google_cluster_data_raw \
-  --max_series 1000 \
-  --max_segments 1200 \
+  --download true \
+  --raw_path external/google_cluster_data_raw/google-cluster-data-1.csv.gz \
+  --max_series 800 \
+  --train_ratio 0.8
+```
+
+Offline preprocessing, if the raw file has already been downloaded:
+
+```bash
+python scripts/prepare_google_cluster_dataset.py \
+  --download false \
+  --raw_path external/google_cluster_data_raw/google-cluster-data-1.csv.gz \
+  --max_series 800 \
   --train_ratio 0.8
 ```
 
@@ -133,21 +122,23 @@ data/tr_google_v1.npy
 data/te_google_v1.npy
 ```
 
+The generated Google tensors use the feature layout `[cpu_target, day, hour, minute, memory, avg_job_type]`.
+
 ## GWA-T-13 Materna
 
 The Materna traces are from the Grid Workloads Archive GWA-T-13 collection:
 
 ```text
-https://atlarge-research.com/gwa-t-13/
+https://gwa.ewi.tudelft.nl/datasets/gwa-t-13-materna/
 ```
 
-Download and extract the raw traces into:
+Download and extract the raw trace directories into:
 
 ```text
 data/GWA-T-13_Materna-Workload-Traces/
 ```
 
-Generate MT-1, MT-2, and MT-3 separately:
+Then generate MT-1, MT-2, and MT-3 separately:
 
 ```bash
 python scripts/prepare_materna_workload_dataset.py \
@@ -172,7 +163,7 @@ data/te_materna_mt3.npy
 
 The Materna preprocessing follows the Fremer-style setup: traces with more than 2 percent missing values are filtered, each trace is kept as a separate dataset, and the time axis is split into train/validation/test partitions.
 
-## Shape Check
+## Verify Shapes
 
 After preparing the files, verify their shapes:
 
@@ -183,15 +174,16 @@ import pickle
 import numpy as np
 
 for name in sorted(os.listdir("data")):
+    path = os.path.join("data", name)
     if name.endswith(".npy"):
-        arr = np.load(os.path.join("data", name), allow_pickle=True)
+        arr = np.load(path, allow_pickle=True)
         print(name, arr.shape)
     elif name.endswith(".pkl"):
-        with open(os.path.join("data", name), "rb") as f:
+        with open(path, "rb") as f:
             arr = pickle.load(f)
         if hasattr(arr, "shape"):
             print(name, arr.shape)
 PY
 ```
 
-The training scripts expect the processed files to remain under `data/` with the filenames listed above.
+Every printed dataset used for training should be three-dimensional and follow `[num_series, num_periods, num_features]`.

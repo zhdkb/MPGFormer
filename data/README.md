@@ -2,7 +2,7 @@
 
 This repository does not include large workload datasets or raw traces.
 
-Please download the original datasets from their official sources and run the preparation scripts under `scripts/` to generate tensors in the following format:
+Please download the original datasets from their official sources and run the preparation scripts under [scripts/](../scripts/) to generate tensors in the following format:
 
 ```text
 [num_series, num_periods, num_features]
@@ -12,10 +12,10 @@ The first feature is treated as the target workload.
 
 ## Dataset Sources
 
-- ECW workload data: see the original ECW/DynEformer release and `DATA_GENERATION_GUIDE.md`.
+- ECW workload data: see the original ECW/DynEformer release and [DATA_GENERATION_GUIDE.md](../DATA_GENERATION_GUIDE.md).
 - Microsoft Azure VM traces: https://github.com/Azure/AzurePublicDataset
 - Google cluster traces: https://github.com/google/cluster-data
-- Materna workload traces: https://atlarge-research.com/gwa-t-13/
+- Materna workload traces: https://gwa.ewi.tudelft.nl/datasets/gwa-t-13-materna/
 
 ## Expected Processed Files
 
