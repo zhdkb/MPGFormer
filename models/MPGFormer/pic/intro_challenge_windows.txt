@@ -1,0 +1,9 @@
+source=synthetic
+top_series=single workload with stable, bursty, and drifted states
+top_length=260
+stable_span=[0, 86)
+burst_span=[86, 158)
+drift_span=[158, 260)
+bottom_series=three synthetic co-fluctuating workloads
+bottom_length=120
+bottom_average_pairwise_correlation=0.9729

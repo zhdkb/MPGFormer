@@ -1,0 +1,4 @@
+dataset,num_windows,selected_stable,selected_bursty,selected_cofluctuation,selected_drifted
+mt1,10720,6064,5266,5808,5046
+mt2,11440,7028,7704,4934,8655
+mt3,13360,4463,10810,3763,7451

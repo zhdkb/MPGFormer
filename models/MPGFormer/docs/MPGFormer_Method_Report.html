@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MPG-Former 实现方法详解</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212f;
+      --muted: #65758b;
+      --soft: #eef4f8;
+      --line: #d8e3ea;
+      --panel: #ffffff;
+      --accent: #176b87;
+      --accent-2: #b55b2a;
+      --code: #102a43;
+      --code-bg: #f5f8fb;
+      --shadow: 0 20px 60px rgba(23, 33, 47, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #f7fbfd 0%, #ffffff 360px),
+        #ffffff;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 17px;
+      line-height: 1.82;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1120px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 42px 0 80px;
+    }
+
+    .hero {
+      padding: 38px 44px 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #f2f7fa 100%);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 900px;
+      font-size: 38px;
+      line-height: 1.22;
+      font-weight: 800;
+      color: #102033;
+    }
+
+    .lead {
+      max-width: 920px;
+      margin: 20px 0 0;
+      color: #405166;
+      font-size: 18px;
+      line-height: 1.78;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .summary-card {
+      min-height: 112px;
+      padding: 18px 18px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #16364a;
+      font-size: 16px;
+    }
+
+    .summary-card span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 34px;
+      align-items: start;
+      margin-top: 34px;
+    }
+
+    nav {
+      position: sticky;
+      top: 24px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    nav h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      color: #102033;
+    }
+
+    nav a {
+      display: block;
+      padding: 7px 0;
+      color: #52606d;
+      font-size: 14px;
+      line-height: 1.45;
+      text-decoration: none;
+      border-bottom: 1px solid #eef2f5;
+    }
+
+    nav a:hover {
+      color: var(--accent);
+    }
+
+    main {
+      min-width: 0;
+      padding: 4px 0 0;
+    }
+
+    section {
+      padding: 30px 0 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section:first-child {
+      padding-top: 0;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      color: #102033;
+      font-size: 26px;
+      line-height: 1.32;
+      font-weight: 760;
+    }
+
+    h3 {
+      margin: 28px 0 12px;
+      color: #16364a;
+      font-size: 20px;
+      line-height: 1.42;
+      font-weight: 720;
+    }
+
+    p {
+      margin: 0 0 16px;
+    }
+
+    .note {
+      margin: 22px 0;
+      padding: 18px 20px;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      background: #f1f7fa;
+      color: #32475b;
+    }
+
+    .compact {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: var(--code-bg);
+      color: var(--code);
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 18px 0 22px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      border: 1px solid #cfdae2;
+      border-radius: 8px;
+      background: #f7fafc;
+      color: #123;
+      line-height: 1.58;
+    }
+
+    pre code {
+      padding: 0;
+      background: transparent;
+      font-size: 14px;
+    }
+
+    .flow {
+      border-color: #c4d9e5;
+      background: linear-gradient(180deg, #f7fbfd 0%, #f2f7fa 100%);
+    }
+
+    table {
+      width: 100%;
+      margin: 20px 0 24px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 15px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f6f9;
+      color: #16364a;
+      font-weight: 720;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .method-box {
+      margin: 22px 0;
+      padding: 22px;
+      border: 1px solid #d7e4ea;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(23, 33, 47, 0.06);
+    }
+
+    .method-box h3 {
+      margin-top: 0;
+    }
+
+    .comparison {
+      padding: 24px;
+      border: 1px solid #ead8cb;
+      border-radius: 8px;
+      background: #fff8f3;
+    }
+
+    .comparison h2 {
+      color: #7a3b1d;
+    }
+
+    .footer {
+      margin-top: 38px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .page {
+        width: min(100vw - 28px, 760px);
+        padding-top: 24px;
+      }
+
+      .hero {
+        padding: 28px 24px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      nav {
+        position: static;
+      }
+    }
+
+    @media (max-width: 560px) {
+      body {
+        font-size: 16px;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Cloud workload forecasting</p>
+      <h1>MPG-Former 实现方法详解</h1>
+      <p class="lead">这份说明聚焦 MPGFormer 的实现本身：数据如何进入模型，时间、原型、图结构和漂移路由如何协同工作，最终如何输出点预测与区间预测。与其他 baseline 的比较被收束为方法动机说明，重点放在 MPGFormer 为什么这样设计。</p>
+      <div class="summary-grid">
+        <div class="summary-card"><strong>非平稳处理</strong><span>Target RevIN 与统计量调制 attention 缓解窗口尺度变化。</span></div>
+        <div class="summary-card"><strong>多尺度建模</strong><span>patch、FFT 与 prototype memory 学习典型负载形态。</span></div>
+        <div class="summary-card"><strong>跨序列关系</strong><span>动态图对比编码利用 batch 内相似工作负载。</span></div>
+        <div class="summary-card"><strong>MSE 优化</strong><span>point-median gate 与 tail-MSE 压低少数大误差。</span></div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav>
+        <h2>目录</h2>
+        <a href="#data">1. 数据进入模型之前</a>
+        <a href="#revin">2. Target RevIN</a>
+        <a href="#temporal">3. 时间编码</a>
+        <a href="#prototype">4. 多尺度时频原型库</a>
+        <a href="#graph">5. 动态图对比编码</a>
+        <a href="#router">6. 漂移感知路由</a>
+        <a href="#decoder">7. Decoder 与点预测</a>
+        <a href="#loss">8. 损失与选模</a>
+        <a href="#baseline">9. 相对 baseline 的改进</a>
+      </nav>
+
+      <main>
+        <section id="overview">
+          <h2>方法概览</h2>
+          <p>MPGFormer 是为云工作负载预测设计的多上下文融合模型。云负载序列通常不是平滑、单尺度、稳定分布的时间序列，而是同时包含局部分布漂移、多尺度周期、短时尖峰以及跨机器或跨任务的相似模式。因此，MPGFormer 没有把预测问题完全交给一个标准 Transformer，而是把时间依赖、多尺度形态、跨序列关系和漂移状态分别建模，最后通过动态路由机制合成为用于预测的上下文。</p>
+          <pre class="flow"><code>raw workload array
+  -> dynamic feature scaling and target scaler
+  -> sliding windows
+  -> target masking for future horizon
+  -> Target RevIN
+  -> temporal encoder
+  -> multi-scale time-frequency prototype bank
+  -> dynamic graph contrastive encoder
+  -> drift-aware router
+  -> Transformer decoder
+  -> point forecast + quantile interval
+  -> inverse target scale
+  -> raw-scale MSE / MAE evaluation</code></pre>
+        </section>
+
+        <section id="data">
+          <h2>1. 数据进入模型之前</h2>
+          <p>训练脚本读取 <code>.npy</code> 或 <code>.pkl</code> 格式的数据，并检查其维度是否为三维。默认第 0 列是待预测的 target，前 <code>input_size</code> 列作为动态输入特征，从 <code>static_start</code> 开始的列作为静态上下文。这个约定使 MPGFormer 可以兼容 Google v1、Azure/VM 以及 ECW 这类数据，只需要通过命令行参数指定动态特征范围和静态特征起点。</p>
+          <p>进入模型前，脚本会对动态特征做 MinMax 归一化，并单独保存 target 的 scaler。验证阶段会把预测值和真实值都反归一化回原始尺度后再计算 MSE 与 MAE，因此指标口径与 Informer、DynEformer 等 baseline 保持一致。</p>
+          <div class="method-box">
+            <h3>窗口构造</h3>
+            <p><code>MPGFormerWindowDataset</code> 把每条序列切成长度为 <code>enc_len + pred_len</code> 的窗口。预测区间中的 target 会被置为 0，防止未来标签泄露；其他已知动态特征保留给 decoder 使用。</p>
+            <pre><code>x: [enc_len + pred_len, input_size]
+y: [pred_len]
+static: [static_dim]</code></pre>
+          </div>
+        </section>
+
+        <section id="revin">
+          <h2>2. Target RevIN：先处理局部分布漂移</h2>
+          <p>云负载的一个典型问题是，同一条序列在不同窗口里的尺度可能完全不同。全局 MinMaxScaler 可以缓解特征量纲问题，但不能解决窗口内部均值和方差变化。MPGFormer 因此在模型内部加入 <code>TargetRevIN</code>，只对 target 通道做窗口级可逆归一化。</p>
+          <pre><code>target_norm = (target - mean) / std
+target = target_norm * std + mean</code></pre>
+          <p>这一步让后续注意力层不必同时承受大幅尺度变化和模式学习的压力。它没有对所有特征都做 RevIN，因为其他动态特征可能有自己的语义范围，强行按 target 的局部尺度变换反而会引入噪声。</p>
+        </section>
+
+        <section id="temporal">
+          <h2>3. 时间编码：长程依赖和短期突变同时建模</h2>
+          <p>经过 Target RevIN 后，动态输入先通过线性层投影到 <code>d_model</code> 维空间，并加入位置编码。如果存在静态上下文，<code>StaticContextSelector</code> 会由每个时间 token 的 query 决定静态信息注入强度，而不是把静态特征机械复制到每个时间点。</p>
+          <p>时间编码主体是 <code>NonStationaryAttentionLayer</code>。它从 target history 中提取窗口均值和标准差，再生成每个 attention head 的调制因子，使 attention logits 变成：</p>
+          <pre><code>attention_logits = tau * (QK^T / sqrt(d_head)) + delta</code></pre>
+          <p>这样 attention 可以随当前窗口负载状态改变分布锐度和偏置。该层内部还进行 moving average decomposition，将表示拆成 trend 和 seasonal residual，降低趋势与高频波动混合建模的难度。</p>
+          <p>长程 attention 后，<code>ShortTermTemporalEncoder</code> 使用两条卷积分支和一个双向 GRU 捕捉局部变化。卷积负责短期尖峰和片段形态，BiGRU 负责邻近时间步的顺序关系。</p>
+        </section>
+
+        <section id="prototype">
+          <h2>4. 多尺度时频原型库：把典型负载形态显式学出来</h2>
+          <p><code>MultiScaleTimeFrequencyBank</code> 会按照多个 patch size 切分 target history，例如 6、12、24、48。每个尺度都提取两类 token：时域 patch token 描述片段形态，频域 FFT magnitude token 描述周期成分。</p>
+          <p>随后，每个尺度 token 会匹配 learnable prototype memory。可以把这些 prototype 理解为训练过程中学到的典型负载形态。当前窗口与这些原型的匹配权重用于生成 <code>prototype_context</code>，也用于估计当前形态是否典型。</p>
+          <p>原型库还输出 <code>future_padding</code>，作为 decoder 未来 target 位置的初始填充值。相比全 0 输入，这个由原型上下文生成的初始轨迹可以给 decoder 一个更接近真实负载形态的起点。</p>
+        </section>
+
+        <section id="graph">
+          <h2>5. 动态图对比编码：利用 batch 内相似序列</h2>
+          <p>MPGFormer 不默认 batch 内序列彼此独立，而是在当前 batch 中构建两个动态图。第一个图由 target history 的 cosine similarity 构建，表示哪些序列近期负载形态相似；第二个图优先由静态上下文构建，如果没有静态上下文，则使用 target 的统计特征构建。</p>
+          <p>两个图都经过 top-k 稀疏化、自环和行归一化。时间编码得到的 <code>time_context</code> 分别经过两个图卷积，形成两个视图，再由对比损失约束同一序列的两个视图保持一致。这样模型可以从相似机器、任务或应用中获得补充信息，尤其适合尖峰样本稀疏的场景。</p>
+        </section>
+
+        <section id="router">
+          <h2>6. 漂移感知路由：按状态选择信息来源</h2>
+          <p>MPGFormer 同时得到时间上下文、图上下文和原型上下文。它们并不总是同等重要：稳定窗口可能更依赖时间历史，漂移窗口可能更依赖图上下文或原型模式，原型不确定时又需要降低原型分支的影响。</p>
+          <p><code>DriftAwareRouter</code> 使用当前窗口的漂移特征生成三个专家权重，包括最后一个值相对窗口均值的 z-score、一阶差分绝对值均值、target 标准差，以及 prototype assignment entropy。</p>
+          <pre><code>fused_context =
+    w_time  * time_context
+  + w_graph * graph_context
+  + w_proto * prototype_context</code></pre>
+          <p>因此，MPGFormer 的融合过程是动态的，而不是固定地拼接或相加。输出的 <code>router_weights</code> 和 <code>drift_score</code> 也可以用于解释模型在某个窗口中为什么更依赖某一类信息。</p>
+        </section>
+
+        <section id="decoder">
+          <h2>7. Decoder、区间预测和点预测稳定化</h2>
+          <p>Transformer decoder 使用历史编码表示和 fused context 生成未来 <code>pred_len</code> 个时间步的隐状态。预测头输出 median、lower distance、upper distance 和 raw point，其中 lower 与 upper 通过 softplus 保证区间有序。</p>
+          <pre><code>lower = median - softplus(lower_distance)
+upper = median + softplus(upper_distance)</code></pre>
+          <p>为了降低少数点预测偏离导致的 MSE，最新版本加入 <code>point_gate</code>，让 point forecast 在 raw point 与 quantile median 之间自适应融合。</p>
+          <pre><code>gate = sigmoid(point_gate(decoded))
+point = gate * raw_point + (1 - gate) * median</code></pre>
+          <p>median 通常更稳定，而 raw point 保留额外表达能力。这个 gate 的目标是减少偶发偏离，同时不把点预测完全限制成 median。</p>
+        </section>
+
+        <section id="loss">
+          <h2>8. 损失函数与 checkpoint 选择</h2>
+          <p>MPGFormer 使用复合损失。MAE 保证普通时间点稳定，MSE 对齐主要评估指标，QuantileLoss 训练预测区间，PeakUnderestimateLoss 减少高负载低估，GraphContrastiveLoss 稳定两个动态图视图。ResidualTailMSE 和 TargetTailMSE 则专门处理 Google v1 这类数据中的少数大误差问题。</p>
+          <pre><code>loss =
+  point_weight * MAE
++ mse_weight * MSE
++ quantile_weight * QuantileLoss
++ peak_weight * PeakUnderestimateLoss
++ tail_mse_weight * ResidualTailMSE
++ target_tail_mse_weight * TargetTailMSE
++ contrastive_weight * GraphContrastiveLoss</code></pre>
+          <table>
+            <thead><tr><th>损失项</th><th>默认权重</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td>MAE</td><td>0.9</td><td>保持普通时间点预测稳定</td></tr>
+              <tr><td>MSE</td><td>0.6</td><td>对齐主要评估指标</td></tr>
+              <tr><td>QuantileLoss</td><td>0.3</td><td>训练区间预测</td></tr>
+              <tr><td>PeakUnderestimateLoss</td><td>0.2</td><td>减少高负载低估</td></tr>
+              <tr><td>ResidualTailMSE</td><td>0.5</td><td>压制最大残差</td></tr>
+              <tr><td>TargetTailMSE</td><td>0.2</td><td>关注高 target 区域</td></tr>
+              <tr><td>GraphContrastiveLoss</td><td>0.04</td><td>稳定动态图表示</td></tr>
+            </tbody>
+          </table>
+          <p>checkpoint 选择也做了调整。旧版本默认按复合 <code>val_loss</code> 保存最优模型，但复合 loss 不一定对应最低 MSE。新版本默认使用 <code>--select_metric mse</code>，因此最终保存的 <code>MPGFormer_best.pt</code> 对应验证 MSE 最低的 epoch。</p>
+        </section>
+
+        <section id="baseline" class="comparison">
+          <h2>9. 和其他方法相比的改进与目标</h2>
+          <p>MPGFormer 和 Informer、Autoformer、DynEformer、Deep Transformer、DeepAR、MQRNN 的区别，主要不在于用了更多层，而在于它把云工作负载中的几个结构性问题拆开处理。Informer 和 Deep Transformer 更依赖 attention 本身去学习时间关系，MPGFormer 在 attention 之外加入 Target RevIN、窗口统计调制和短期 Conv/GRU，使模型更能适应非平稳和局部尖峰。Autoformer 强调趋势和周期分解，MPGFormer 保留 moving average decomposition 的思想，但进一步加入 FFT token 和 learnable prototype memory，让周期与典型负载形态可以端到端学习。DynEformer 使用 global pooling 引入全局模式，MPGFormer 则用多尺度原型库和动态图对比编码替代对预构建全局池的依赖，使模式学习和跨序列关系都能随训练自适应调整。</p>
+          <p>与 DeepAR 和 MQRNN 这类 RNN 系方法相比，MPGFormer 不再主要依赖自回归隐藏状态去记住历史，而是同时使用 attention 的长程建模、卷积和 GRU 的局部建模、原型库的形态记忆以及动态图的跨序列信息。MQRNN 的分位数预测思想在 MPGFormer 中被保留下来，但 MPGFormer 额外加入 point-median gate 和 MSE/tail-MSE 目标，使区间预测和点预测指标可以同时优化。</p>
+          <p>这些改进的共同目标是让模型更贴近云负载数据本身：Target RevIN 和非平稳 attention 处理分布漂移，多尺度时频原型处理周期和典型形态，动态图对比编码处理跨序列相似性，漂移感知路由处理信息来源选择，point-median gate 与 tail-MSE 系列损失则专门降低少数尖峰误差对 MSE 的影响。</p>
+        </section>
+
+        <p class="footer">Generated for models/MPGFormer · Method implementation note</p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,159 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\geometry{left=2.4cm,right=2.4cm,top=2.4cm,bottom=2.4cm}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  backgroundcolor=\color{gray!6}
+}
+
+\title{MPG-Former 实现方法详解}
+\author{models/MPGFormer}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+MPGFormer 是为云工作负载预测设计的多上下文融合模型。它的出发点很直接：云负载序列往往不是平滑、单尺度、稳定分布的时间序列，而是同时包含局部分布漂移、多尺度周期、短时尖峰以及跨机器或跨任务的相似模式。因此，MPGFormer 没有把预测问题完全交给一个标准 Transformer，而是把时间依赖、多尺度形态、跨序列关系和漂移状态分别建模，最后再通过一个动态路由机制把这些信息合成用于预测的上下文。
+
+\section{数据进入模型之前}
+
+训练脚本读取 \verb|.npy| 或 \verb|.pkl| 格式的数据，并检查其维度是否为三维。默认情况下，第 0 列是待预测的 target，前 \verb|input_size| 列作为动态输入特征，从 \verb|static_start| 开始的列作为静态上下文。这个约定使 MPGFormer 可以兼容 Google v1、Azure/VM 以及 ECW 这类数据。
+
+进入模型前，脚本会对动态特征做 MinMax 归一化，并单独保存 target 的 scaler。验证阶段会把预测值和真实值都反归一化回原始尺度后再计算 MSE 与 MAE，因此指标口径与 Informer、DynEformer 等 baseline 保持一致。
+
+\verb|MPGFormerWindowDataset| 把每条序列切成长度为 \verb|enc_len + pred_len| 的窗口。预测区间中的 target 会被置为 0，防止未来标签泄露；其他已知动态特征保留给 decoder 使用。
+
+\begin{lstlisting}
+x: [enc_len + pred_len, input_size]
+y: [pred_len]
+static: [static_dim]
+\end{lstlisting}
+
+\section{Target RevIN}
+
+云负载的一个典型问题是，同一条序列在不同窗口里的尺度可能完全不同。全局 MinMaxScaler 可以缓解特征量纲问题，但不能解决窗口内部均值和方差变化。MPGFormer 因此在模型内部加入 \verb|TargetRevIN|，只对 target 通道做窗口级可逆归一化。
+
+\begin{lstlisting}
+target_norm = (target - mean) / std
+target = target_norm * std + mean
+\end{lstlisting}
+
+这一步让后续注意力层不必同时承受大幅尺度变化和模式学习的压力。它没有对所有特征都做 RevIN，因为其他动态特征可能有自己的语义范围，强行按 target 的局部尺度变换反而会引入噪声。
+
+\section{时间编码}
+
+经过 Target RevIN 后，动态输入先通过线性层投影到 \verb|d_model| 维空间，并加入位置编码。如果存在静态上下文，\verb|StaticContextSelector| 会由每个时间 token 的 query 决定静态信息注入强度，而不是把静态特征机械复制到每个时间点。
+
+时间编码主体是 \verb|NonStationaryAttentionLayer|。它从 target history 中提取窗口均值和标准差，再生成每个 attention head 的调制因子，使 attention logits 变成：
+
+\begin{lstlisting}
+attention_logits = tau * (QK^T / sqrt(d_head)) + delta
+\end{lstlisting}
+
+这样 attention 可以随当前窗口负载状态改变分布锐度和偏置。该层内部还进行 moving average decomposition，将表示拆成 trend 和 seasonal residual，降低趋势与高频波动混合建模的难度。
+
+长程 attention 后，\verb|ShortTermTemporalEncoder| 使用两条卷积分支和一个双向 GRU 捕捉局部变化。卷积负责短期尖峰和片段形态，BiGRU 负责邻近时间步的顺序关系。
+
+\section{多尺度时频原型库}
+
+\verb|MultiScaleTimeFrequencyBank| 会按照多个 patch size 切分 target history，例如 6、12、24、48。每个尺度都提取两类 token：时域 patch token 描述片段形态，频域 FFT magnitude token 描述周期成分。
+
+随后，每个尺度 token 会匹配 learnable prototype memory。可以把这些 prototype 理解为训练过程中学到的典型负载形态。当前窗口与这些原型的匹配权重用于生成 \verb|prototype_context|，也用于估计当前形态是否典型。
+
+原型库还输出 \verb|future_padding|，作为 decoder 未来 target 位置的初始填充值。相比全 0 输入，这个由原型上下文生成的初始轨迹可以给 decoder 一个更接近真实负载形态的起点。
+
+\section{动态图对比编码}
+
+MPGFormer 不默认 batch 内序列彼此独立，而是在当前 batch 中构建两个动态图。第一个图由 target history 的 cosine similarity 构建，表示哪些序列近期负载形态相似；第二个图优先由静态上下文构建，如果没有静态上下文，则使用 target 的统计特征构建。
+
+两个图都经过 top-k 稀疏化、自环和行归一化。时间编码得到的 \verb|time_context| 分别经过两个图卷积，形成两个视图，再由对比损失约束同一序列的两个视图保持一致。这样模型可以从相似机器、任务或应用中获得补充信息，尤其适合尖峰样本稀疏的场景。
+
+\section{漂移感知路由}
+
+MPGFormer 同时得到时间上下文、图上下文和原型上下文。它们并不总是同等重要：稳定窗口可能更依赖时间历史，漂移窗口可能更依赖图上下文或原型模式，原型不确定时又需要降低原型分支的影响。
+
+\verb|DriftAwareRouter| 使用当前窗口的漂移特征生成三个专家权重，包括最后一个值相对窗口均值的 z-score、一阶差分绝对值均值、target 标准差，以及 prototype assignment entropy。
+
+\begin{lstlisting}
+fused_context =
+    w_time  * time_context
+  + w_graph * graph_context
+  + w_proto * prototype_context
+\end{lstlisting}
+
+因此，MPGFormer 的融合过程是动态的，而不是固定地拼接或相加。输出的 \verb|router_weights| 和 \verb|drift_score| 也可以用于解释模型在某个窗口中为什么更依赖某一类信息。
+
+\section{Decoder、区间预测和点预测稳定化}
+
+Transformer decoder 使用历史编码表示和 fused context 生成未来 \verb|pred_len| 个时间步的隐状态。预测头输出 median、lower distance、upper distance 和 raw point，其中 lower 与 upper 通过 softplus 保证区间有序。
+
+\begin{lstlisting}
+lower = median - softplus(lower_distance)
+upper = median + softplus(upper_distance)
+\end{lstlisting}
+
+为了降低少数点预测偏离导致的 MSE，最新版本加入 \verb|point_gate|，让 point forecast 在 raw point 与 quantile median 之间自适应融合。
+
+\begin{lstlisting}
+gate = sigmoid(point_gate(decoded))
+point = gate * raw_point + (1 - gate) * median
+\end{lstlisting}
+
+\section{损失函数与 checkpoint 选择}
+
+MPGFormer 使用复合损失。MAE 保证普通时间点稳定，MSE 对齐主要评估指标，QuantileLoss 训练预测区间，PeakUnderestimateLoss 减少高负载低估，GraphContrastiveLoss 稳定两个动态图视图。ResidualTailMSE 和 TargetTailMSE 则专门处理 Google v1 这类数据中的少数大误差问题。
+
+\begin{lstlisting}
+loss =
+  point_weight * MAE
++ mse_weight * MSE
++ quantile_weight * QuantileLoss
++ peak_weight * PeakUnderestimateLoss
++ tail_mse_weight * ResidualTailMSE
++ target_tail_mse_weight * TargetTailMSE
++ contrastive_weight * GraphContrastiveLoss
+\end{lstlisting}
+
+\begin{longtable}{lll}
+\toprule
+损失项 & 默认权重 & 作用 \\
+\midrule
+MAE & 0.9 & 保持普通时间点预测稳定 \\
+MSE & 0.6 & 对齐主要评估指标 \\
+QuantileLoss & 0.3 & 训练区间预测 \\
+PeakUnderestimateLoss & 0.2 & 减少高负载低估 \\
+ResidualTailMSE & 0.5 & 压制最大残差 \\
+TargetTailMSE & 0.2 & 关注高 target 区域 \\
+GraphContrastiveLoss & 0.04 & 稳定动态图表示 \\
+\bottomrule
+\end{longtable}
+
+checkpoint 选择也做了调整。旧版本默认按复合 \verb|val_loss| 保存最优模型，但复合 loss 不一定对应最低 MSE。新版本默认使用 \verb|--select_metric mse|，因此最终保存的 \verb|MPGFormer_best.pt| 对应验证 MSE 最低的 epoch。
+
+\section{和其他方法相比的改进与目标}
+
+MPGFormer 和 Informer、Autoformer、DynEformer、Deep Transformer、DeepAR、MQRNN 的区别，主要不在于用了更多层，而在于它把云工作负载中的几个结构性问题拆开处理。Informer 和 Deep Transformer 更依赖 attention 本身去学习时间关系，MPGFormer 在 attention 之外加入 Target RevIN、窗口统计调制和短期 Conv/GRU，使模型更能适应非平稳和局部尖峰。Autoformer 强调趋势和周期分解，MPGFormer 保留 moving average decomposition 的思想，但进一步加入 FFT token 和 learnable prototype memory，让周期与典型负载形态可以端到端学习。DynEformer 使用 global pooling 引入全局模式，MPGFormer 则用多尺度原型库和动态图对比编码替代对预构建全局池的依赖，使模式学习和跨序列关系都能随训练自适应调整。
+
+与 DeepAR 和 MQRNN 这类 RNN 系方法相比，MPGFormer 不再主要依赖自回归隐藏状态去记住历史，而是同时使用 attention 的长程建模、卷积和 GRU 的局部建模、原型库的形态记忆以及动态图的跨序列信息。MQRNN 的分位数预测思想在 MPGFormer 中被保留下来，但 MPGFormer 额外加入 point-median gate 和 MSE/tail-MSE 目标，使区间预测和点预测指标可以同时优化。
+
+这些改进的共同目标是让模型更贴近云负载数据本身：Target RevIN 和非平稳 attention 处理分布漂移，多尺度时频原型处理周期和典型形态，动态图对比编码处理跨序列相似性，漂移感知路由处理信息来源选择，point-median gate 与 tail-MSE 系列损失则专门降低少数尖峰误差对 MSE 的影响。
+
+\section{论文式方法概括}
+
+MPGFormer 可以概括为一个面向云工作负载预测的漂移感知多专家融合框架。模型首先通过目标通道可逆归一化缓解局部分布漂移，然后使用由窗口统计量调制的非平稳注意力提取长程时间依赖，并通过卷积与 GRU 捕捉短期尖峰。在此基础上，模型构建多尺度时频原型库以学习典型负载形态，同时构建动态图对比编码器以利用 batch 内跨序列相似性。随后，漂移感知路由器根据负载波动、趋势变化和原型不确定性，自适应融合时间上下文、图上下文和原型上下文。最后，Transformer decoder 输出点预测和分位数区间。为了降低稀疏尖峰造成的 MSE，模型进一步引入 point-median gate、ResidualTailMSE、TargetTailMSE，并默认按验证 MSE 选择最佳 checkpoint。
+
+\section{总结}
+
+MPGFormer 的实现可以理解为一条从局部尺度校正到多上下文融合，再到尖峰误差控制的完整预测流程。Target RevIN 先缓解窗口尺度漂移，非平稳 attention 和短期编码器提取时间表示，多尺度时频原型库提供典型形态和未来初始化，动态图对比编码利用 batch 内相似序列，漂移感知路由器决定不同信息来源的权重，decoder 最后输出点预测和区间预测。相对其他方法，MPGFormer 的主要改进不是单点结构，而是围绕云工作负载的非平稳、多尺度、跨序列和稀疏尖峰特性形成了一套连贯的实现。
+
+\end{document}

@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "MPG-Former: Drift-Aware Multi-scale Prototype-Graph Transformer for Cloud Workload Forecasting"
+message: "If you use this code, please cite the associated paper."
+type: software
+authors:
+  - family-names: "Anonymous"
+    given-names: "Authors"
+year: 2026
+license: MIT

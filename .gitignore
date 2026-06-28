@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+*.so
+.DS_Store
+.ipynb_checkpoints/
+
+# environments
+.env
+.venv/
+venv/
+env/
+
+# datasets and checkpoints
+data/*.npy
+data/*.pkl
+data/*.csv
+data/*.gz
+data/GWA-T-13_Materna-Workload-Traces/
+external/
+checkpoints/*
+!checkpoints/.gitkeep
+saved_model/
+*.pt
+*.pth
+
+# logs and generated caches
+logs/
+runs/
+wandb/
+.matplotlib-cache/
+
+# private editor / deployment settings
+.vscode/
+*.sftp.json

@@ -1,0 +1,8 @@
+dataset,variant,mse,mae,smape_percent,source
+google_v1,MPG-Former,0.748,0.126,128.467,models/MPGFormer/main.tex:tab:ablation
+google_v1,w/o RevIN,0.783,0.134,144.747,models/MPGFormer/main.tex:tab:ablation
+google_v1,w/o NS-Attn,0.766,0.131,131.979,models/MPGFormer/main.tex:tab:ablation
+google_v1,w/o ShortEnc,0.817,0.129,134.111,models/MPGFormer/main.tex:tab:ablation
+google_v1,w/o Proto,0.793,0.132,129.530,models/MPGFormer/main.tex:tab:ablation
+google_v1,w/o Graph,0.816,0.137,133.099,models/MPGFormer/main.tex:tab:ablation
+google_v1,w/o Router,0.772,0.130,133.192,models/MPGFormer/main.tex:tab:ablation

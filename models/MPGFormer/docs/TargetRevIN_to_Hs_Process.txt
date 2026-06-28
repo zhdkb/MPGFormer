@@ -1,0 +1,255 @@
+第三部分：Target RevIN 归一化过程
+
+目标：
+第三部分只负责对 encoder 历史窗口中的 target 通道做 per-window normalization，
+也就是按每一个窗口单独归一化目标 workload。
+这一部分不画反归一化，也不画最终输出恢复过程。
+
+
+输入：
+
+Encoder 输入：
+
+X_enc ∈ R^{B×48×C}
+
+其中：
+B 表示 batch size；
+48 表示 encoder 历史长度；
+C 表示每个时间点的动态特征数量，默认 C = 4。
+
+如果 target 通道是第 0 维，则目标窗口为：
+
+x_w = X_enc[:, :, 0]
+
+所以：
+
+x_w ∈ R^{B×48}
+
+x_w 表示每个窗口过去 48 个时间点的目标 workload 历史序列。
+
+
+Step 1：提取目标通道
+
+从 encoder 输入中取出 target workload：
+
+X_enc ∈ R^{B×48×C}
+        ↓
+x_w ∈ R^{B×48}
+
+这里的 x_w 是每个窗口过去 48 个时间点的目标负载值。
+
+
+Step 2：计算窗口统计量
+
+对每个窗口单独计算均值和标准差：
+
+μ_w = mean(x_w)
+σ_w = std(x_w)
+
+其中：
+
+μ_w ∈ R^{B×1}
+σ_w ∈ R^{B×1}
+
+也就是说，每个窗口都有自己的均值和标准差。
+
+
+Step 3：归一化 target window
+
+使用当前窗口自己的均值和标准差，对 target 通道做归一化：
+
+x̃_w = (x_w - μ_w) / (σ_w + ε)
+
+其中：
+
+x̃_w ∈ R^{B×48}
+
+ε 是一个很小的常数，用来避免除零。
+
+这一步的作用是：
+减弱不同窗口之间的局部尺度差异；
+让模型更关注形状、趋势和波动模式，而不是绝对数值大小。
+
+
+Step 4：替换原 target 通道
+
+将归一化后的 x̃_w 放回 encoder 输入中的 target 通道：
+
+X_enc[:, :, 0] ← x̃_w
+
+得到归一化后的 encoder 输入：
+
+X̃_enc ∈ R^{B×48×C}
+
+其中：
+target 通道已归一化；
+其他动态特征保持不变。
+
+所以第三部分最终输出是：
+
+X̃_enc ∈ R^{B×48×C}
+
+
+第四部分：生成历史表示 H_s
+
+目标：
+第四部分的输入是第三部分输出的归一化 encoder 输入 X̃_enc。
+这一部分负责把每个时间点的低维动态输入特征变成模型内部使用的高维时间 token。
+
+
+输入：
+
+X̃_enc ∈ R^{B×48×C}
+
+默认情况下：
+
+C = 4
+
+也就是：
+
+X̃_enc ∈ R^{B×48×4}
+
+
+输出：
+
+H_s ∈ R^{B×48×d_model}
+
+默认：
+
+d_model = 128
+
+所以：
+
+H_s ∈ R^{B×48×128}
+
+
+Step 1：Linear Projection
+
+首先对每个时间点的动态特征做线性投影：
+
+Linear Projection: R^C → R^{d_model}
+
+整体张量变化是：
+
+X̃_enc ∈ R^{B×48×C}
+        ↓
+Z ∈ R^{B×48×d_model}
+
+如果：
+
+C = 4
+d_model = 128
+
+那么就是：
+
+[B×48×4] → [B×48×128]
+
+这一步的作用是：
+把原始动态特征映射到模型可以处理的高维隐藏空间。
+
+
+Step 2：加入位置编码
+
+Transformer 类模型本身不知道时间顺序，因此需要加入位置编码：
+
+Z_pos = Z + PE
+
+其中：
+
+PE ∈ R^{1×48×d_model}
+
+加入位置编码后，每个时间点的 token 都包含自己的时间位置信息。
+
+这一步的作用是：
+告诉模型第 1 个点、第 2 个点、...、第 48 个点在时间顺序上的位置。
+
+
+Step 3：融合静态上下文
+
+如果数据中有静态上下文，例如机器配置、实例类型、应用类型等，
+模型会通过门控方式将静态信息注入到每个时间 token 中。
+
+静态上下文记为：
+
+s ∈ R^{B×C_s}
+
+其中：
+
+C_s 表示静态特征维度。
+
+模型将静态上下文映射到隐藏空间，并通过门控机制控制其影响：
+
+Z_static = GatedStaticContext(Z_pos, s)
+
+如果没有静态上下文，则这一步可以跳过：
+
+Z_static = Z_pos
+
+这一步的作用是：
+让模型知道当前 workload 属于什么机器、应用或实例环境。
+
+
+Step 4：LayerNorm
+
+最后对融合后的隐藏表示做 LayerNorm：
+
+H_s = LayerNorm(Z_static)
+
+输出：
+
+H_s ∈ R^{B×48×d_model}
+
+这一步的作用是：
+稳定隐藏特征分布，便于后续注意力层、原型分支和图分支使用。
+
+
+画图时的组织方式
+
+第三部分可以画成：
+
+X_enc
+  ↓ extract target
+x_w
+  ↓ compute μ_w, σ_w
+x̃_w = (x_w - μ_w) / (σ_w + ε)
+  ↓ replace target channel
+X̃_enc
+
+
+第四部分可以画成：
+
+X̃_enc
+  ↓ Linear Projection
+Z
+  ↓ + Positional Encoding
+Z_pos
+  ↓ Gated Static Context
+Z_static
+  ↓ LayerNorm
+H_s
+
+
+合并后的完整流程：
+
+Encoder Input X_enc ∈ R^{B×48×C}
+        ↓
+Target RevIN
+        ↓
+Normalized Encoder Input X̃_enc ∈ R^{B×48×C}
+        ↓
+Linear Projection
+        ↓
++ Positional Encoding
+        ↓
+Gated Static Context
+        ↓
+LayerNorm
+        ↓
+History Representation H_s ∈ R^{B×48×d_model}
+
+
+一句话总结：
+
+第三部分只负责把 encoder 历史窗口中的 target 通道按当前窗口归一化，得到 X̃_enc；
+第四部分再把 X̃_enc 投影成高维时间表示，加入时间位置信息和静态上下文，
+最终得到后续多证据分支使用的历史表示 H_s。
