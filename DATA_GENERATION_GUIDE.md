@@ -22,7 +22,7 @@ Replace `/path/to/MPGFormer` with your local clone path.
 
 | Output file | Source | Preparation script |
 | --- | --- | --- |
-| `ECW_08.npy`, `ECW_switch.pkl`, `ECW_newmac.pkl`, `ECW_newapp.pkl`, `Task_ID_Dict.pkl` | ECW workload data used by DynEformer / One for All | Preprocessed files from the original ECW package |
+| `ECW_08.npy`, `ECW_newmac.pkl`, `ECW_newapp.pkl`, `Task_ID_Dict.pkl` | ECW workload data used by DynEformer / One for All | Preprocessed files from the original ECW package |
 | `tr_vm_official.npy`, `te_vm_official.npy` | Microsoft Azure Public Dataset VM CPU traces | `scripts/prepare_azure_vm_dataset.py` |
 | `tr_google_v1.npy`, `te_google_v1.npy` | Google Cluster Trace v1 | `scripts/prepare_google_cluster_dataset.py` |
 | `tr_materna_mt1.npy`, `va_materna_mt1.npy`, `te_materna_mt1.npy` | GWA-T-13 Materna trace 1 | `scripts/prepare_materna_workload_dataset.py` |
@@ -35,18 +35,16 @@ The ECW files are:
 
 ```text
 data/ECW_08.npy
-data/ECW_switch.pkl
 data/ECW_newmac.pkl
 data/ECW_newapp.pkl
 data/Task_ID_Dict.pkl
 ```
 
-These files correspond to the main ECW setting, App Switch, New Infras., New App, and the task-ID dictionary used by the ECW preprocessing pipeline. The raw ECW business logs and machine metadata are not redistributed in this repository. To reproduce ECW experiments, copy the preprocessed files from the original ECW/DynEformer data package:
+These files correspond to the main ECW setting, New Infras., New App, and the task-ID dictionary used by the ECW preprocessing pipeline. The raw ECW business logs and machine metadata are not redistributed in this repository. To reproduce ECW experiments, copy the preprocessed files from the original ECW/DynEformer data package:
 
 ```bash
 mkdir -p data
 cp /path/to/original_ecw/ECW_08.npy data/
-cp /path/to/original_ecw/ECW_switch.pkl data/
 cp /path/to/original_ecw/ECW_newmac.pkl data/
 cp /path/to/original_ecw/ECW_newapp.pkl data/
 cp /path/to/original_ecw/Task_ID_Dict.pkl data/
@@ -56,7 +54,6 @@ Expected shapes:
 
 ```text
 ECW_08.npy       -> (797, 720, 16)
-ECW_switch.pkl   -> (3, 120, 16)
 ECW_newmac.pkl   -> (651, 144, 16)
 ECW_newapp.pkl   -> (11, 720, 16)
 ```

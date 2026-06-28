@@ -23,7 +23,6 @@ conda activate MPGFormer
 The reproduction scenarios use these files:
 
 - ECW: `data/ECW_08.npy`
-- App Switch: `data/ECW_switch.pkl`
 - New Infras.: `data/ECW_newmac.pkl`
 - New App: `data/ECW_newapp.pkl`
 - Azure: `data/tr_vm_official.npy` and `data/te_vm_official.npy`
@@ -57,19 +56,6 @@ ECW:
 PYTHONPATH=/path/to/MPGFormer \
 python train_mpgformer.py \
   --data ../../data/ECW_08.npy \
-  --epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --static_start 4 \
-  --select_metric mse
-```
-App Switch:
-
-```bash
-PYTHONPATH=/path/to/MPGFormer \
-python train_mpgformer.py \
-  --data ../../data/ECW_08.npy \
-  --test_data ../../data/ECW_switch.pkl \
   --epochs 300 \
   --batch_size 64 \
   --input_size 4 \
@@ -219,15 +205,6 @@ PYTHONPATH=/path/to/MPGFormer \
 python dyneformer_main.py \
   --num_epoches 300 \
   --batch_size 256
-```
-
-App Switch:
-
-Before this test, make sure the ECW K-search and ECW Global Pool build above have already been run. This script evaluates the ECW-trained DynEformer under an application-switch scenario and loads the same ECW `K=551` pool.
-
-```bash
-PYTHONPATH=/path/to/MPGFormer \
-python dynet_app_switch.py
 ```
 
 New Infras.:
@@ -485,16 +462,6 @@ python auto_info_workload_main.py \
   --batch_size 64 \
   --test_step 12
 ```
-App Switch:
-
-```bash
-python auto_info_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --train_epochs 300 \
-  --batch_size 64 \
-  --test_step 2
-```
 New Infras.:
 
 ```bash
@@ -580,16 +547,6 @@ python informer_workload_main.py \
   --train_epochs 300 \
   --batch_size 64 \
   --test_step 12
-```
-App Switch:
-
-```bash
-python informer_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --train_epochs 300 \
-  --batch_size 64 \
-  --test_step 2
 ```
 New Infras.:
 
@@ -679,17 +636,6 @@ python fremer_workload_main.py \
   --batch_size 64 \
   --input_size 4 \
   --test_step 12
-```
-App Switch:
-
-```bash
-python fremer_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --test_step 2
 ```
 New Infras.:
 
@@ -784,17 +730,6 @@ python itransformer_workload_main.py \
   --batch_size 64 \
   --input_size 4 \
   --test_step 12
-```
-App Switch:
-
-```bash
-python itransformer_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --train_epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --test_step 2
 ```
 New Infras.:
 
@@ -892,17 +827,6 @@ python pdf_workload_main.py \
   --input_size 4 \
   --test_step 12
 ```
-App Switch:
-
-```bash
-python pdf_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --test_step 2
-```
 New Infras.:
 
 ```bash
@@ -999,18 +923,6 @@ python tfegru_workload_main.py \
   --batch_size 64 \
   --input_size 4 \
   --test_step 12
-```
-App Switch:
-
-```bash
-PYTHONPATH=/path/to/MPGFormer \
-python tfegru_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --test_step 2
 ```
 New Infras.:
 
@@ -1117,18 +1029,6 @@ python softs_workload_main.py \
   --input_size 4 \
   --test_step 12
 ```
-App Switch:
-
-```bash
-PYTHONPATH=/path/to/MPGFormer \
-python softs_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --test_step 2
-```
 New Infras.:
 
 ```bash
@@ -1233,18 +1133,6 @@ python micn_workload_main.py \
   --input_size 4 \
   --test_step 12
 ```
-App Switch:
-
-```bash
-PYTHONPATH=/path/to/MPGFormer \
-python micn_workload_main.py \
-  --train_data ../../../data/ECW_08.npy \
-  --test_data ../../../data/ECW_switch.pkl \
-  --epochs 300 \
-  --batch_size 64 \
-  --input_size 4 \
-  --test_step 2
-```
 New Infras.:
 
 ```bash
@@ -1328,22 +1216,6 @@ python micn_workload_main.py \
   --batch_size 64 \
   --input_size 10 \
   --test_step 12
-```
-
-## Quick Smoke Tests
-
-To check that an entry can run before a full reproduction, reduce epochs:
-
-```bash
-python auto_info_workload_main.py --train_epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python train_mpgformer.py --epochs 2 --batch_size 32 --test_data ../../data/ECW_switch.pkl
-python informer_workload_main.py --train_epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python fremer_workload_main.py --epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python itransformer_workload_main.py --train_epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python pdf_workload_main.py --epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python tfegru_workload_main.py --epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python softs_workload_main.py --epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
-python micn_workload_main.py --epochs 2 --batch_size 32 --test_data ../../../data/ECW_switch.pkl
 ```
 
 If CUDA OOM occurs, lower `--batch_size` to `32` or `16`.
