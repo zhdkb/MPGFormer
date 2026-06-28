@@ -19,7 +19,7 @@ MPG-Former formulates cloud workload forecasting as a drift-aware evidence selec
 ├── models/
 │   ├── MPGFormer/          # Proposed model and training entry
 │   └── baseline/           # Adapted baseline implementations
-├── scripts/                # Dataset preparation and figure scripts
+├── scripts/                # Dataset preparation scripts
 ├── data/                   # Put processed datasets here
 ├── results/                # CSV files used for reported analysis
 ├── figures/                # Paper figures and generated analysis figures
@@ -111,11 +111,6 @@ The [models/baseline](models/baseline) directory contains adapted implementation
 ## Results and Figures
 
 The [results/](results/) directory contains CSV files for sensitivity, ablation, efficiency, and interpretability analyses. The [figures/](figures/) directory contains generated figures for the reported analyses.
-
-```bash
-python scripts/draw_mpgformer_sensitivity.py
-python scripts/draw_mpgformer_interpretability.py
-```
 
 ## License
 
