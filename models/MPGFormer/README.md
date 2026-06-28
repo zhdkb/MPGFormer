@@ -1,6 +1,6 @@
-# MPG-Former
+# MPGFormer
 
-MPG-Former is implemented in code as `MPGFormer`. It is a workload forecasting model for dynamic cloud systems and combines:
+MPGFormer is implemented in code as `MPGFormer`. It is a workload forecasting model for dynamic cloud systems and combines:
 
 - multi-scale time-frequency prototype routing,
 - non-stationary temporal attention,

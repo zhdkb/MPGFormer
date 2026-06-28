@@ -3,7 +3,7 @@
 This file keeps the reproduction commands compact. Use it in two steps:
 
 1. Select one dataset preset.
-2. Run the command block for MPG-Former or a baseline.
+2. Run the command block for MPGFormer or a baseline.
 
 All commands assume the repository is cloned as `/path/to/MPGFormer`.
 
@@ -122,7 +122,7 @@ if [ -n "${TEST:-}" ]; then
 fi
 ```
 
-## 2. MPG-Former
+## 2. MPGFormer
 
 ```bash
 cd "$REPO/models/MPGFormer"
@@ -327,5 +327,5 @@ Run only the command that matches the selected dataset.
 
 - Prepare datasets first with [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md).
 - All scripts report MSE, MAE, and SMAPE on the inverse-scaled workload target.
-- Azure target scaling follows the same convention across MPG-Former and baselines.
+- Azure target scaling follows the same convention across MPGFormer and baselines.
 - Use smaller `EPOCHS` for quick debugging, but keep the listed values for paper reproduction.

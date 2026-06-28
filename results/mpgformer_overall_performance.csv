@@ -1,4 +1,4 @@
-dataset,metric,MPG-Former,Autoformer,Informer,Fremer,iTransformer,DynEformer,PDF,TFEGRU,SOFTS,MICN,source
+dataset,metric,MPGFormer,Autoformer,Informer,Fremer,iTransformer,DynEformer,PDF,TFEGRU,SOFTS,MICN,source
 ECW,MSE,0.066,0.079,0.066,0.076,0.073,0.072,0.074,0.090,0.073,0.081,models/MPGFormer/main.tex:tab:overall_performance
 ECW,MAE,0.121,0.146,0.128,0.139,0.137,0.146,0.138,0.167,0.140,0.145,models/MPGFormer/main.tex:tab:overall_performance
 ECW,SMAPE(%),25.824,34.822,23.734,29.667,31.678,28.183,28.735,35.925,33.446,29.227,models/MPGFormer/main.tex:tab:overall_performance

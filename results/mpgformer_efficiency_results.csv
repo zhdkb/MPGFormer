@@ -1,5 +1,5 @@
 model,training_time_min_s,peak_gpu_mem_gb,source
-MPG-Former,14:54,2.04,models/MPGFormer/main.tex:tab:azure_efficiency
+MPGFormer,14:54,2.04,models/MPGFormer/main.tex:tab:azure_efficiency
 Autoformer,17:39,2.12,models/MPGFormer/main.tex:tab:azure_efficiency
 Informer,18:17,2.03,models/MPGFormer/main.tex:tab:azure_efficiency
 Fremer,08:01,0.96,models/MPGFormer/main.tex:tab:azure_efficiency

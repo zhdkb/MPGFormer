@@ -1,6 +1,6 @@
 # Dataset Preparation Guide
 
-This guide explains how to regenerate the processed workload files expected by MPG-Former and the adapted baselines.
+This guide explains how to regenerate the processed workload files expected by MPGFormer and the adapted baselines.
 
 All models use the same tensor convention:
 

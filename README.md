@@ -1,8 +1,8 @@
-# MPG-Former
+# MPGFormer
 
-Official implementation of **MPG-Former: Drift-Aware Multi-scale Prototype-Graph Transformer for Cloud Workload Forecasting**.
+Official implementation of **MPGFormer: Drift-Aware Multi-scale Prototype-Graph Transformer for Cloud Workload Forecasting**.
 
-MPG-Former formulates cloud workload forecasting as a drift-aware evidence selection problem. Given a historical workload window, the model extracts temporal evidence, multi-scale time-frequency prototype evidence, and dynamic graph evidence, then adaptively routes these evidence sources for multi-step workload prediction.
+MPGFormer formulates cloud workload forecasting as a drift-aware evidence selection problem. Given a historical workload window, the model extracts temporal evidence, multi-scale time-frequency prototype evidence, and dynamic graph evidence, then adaptively routes these evidence sources for multi-step workload prediction.
 
 ## Highlights
 
@@ -71,7 +71,7 @@ data/te_materna_mt3.npy
 
 See [data/README.md](data/README.md) for the expected file list and [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md) for dataset sources and preparation commands.
 
-## Train MPG-Former
+## Train MPGFormer
 
 Run from [models/MPGFormer](models/MPGFormer):
 
@@ -102,7 +102,7 @@ PYTHONPATH=../.. python train_mpgformer.py \
   --static_start 6
 ```
 
-Commands for MPG-Former and all baselines are summarized in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md).
+Commands for MPGFormer and all baselines are summarized in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md).
 
 ## Baselines
 
