@@ -12,7 +12,7 @@ The first feature is treated as the target workload.
 
 ## Dataset Sources
 
-- ECW workload data: see the original ECW/DynEformer release and [DATA_GENERATION_GUIDE.md](../DATA_GENERATION_GUIDE.md).
+- ECW workload data: https://github.com/hsy23/ECWDataset
 - Microsoft Azure VM traces: https://github.com/Azure/AzurePublicDataset
 - Google cluster traces: https://github.com/google/cluster-data
 - Materna workload traces: https://gwa.ewi.tudelft.nl/datasets/gwa-t-13-materna/

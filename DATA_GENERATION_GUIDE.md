@@ -22,7 +22,7 @@ mkdir -p data external
 
 | Dataset | Required processed files | Source/preparation |
 | --- | --- | --- |
-| ECW | `data/ECW_08.npy`, `data/ECW_newmac.pkl`, `data/ECW_newapp.pkl`, `data/Task_ID_Dict.pkl` | Preprocessed ECW files from the DynEformer/One for All package |
+| ECW | `data/ECW_08.npy`, `data/ECW_newmac.pkl`, `data/ECW_newapp.pkl`, `data/Task_ID_Dict.pkl` | Preprocessed files from `hsy23/ECWDataset` |
 | Microsoft Azure | `data/tr_vm_official.npy`, `data/te_vm_official.npy` | `scripts/prepare_azure_vm_dataset.py` |
 | Google v1 | `data/tr_google_v1.npy`, `data/te_google_v1.npy` | `scripts/prepare_google_cluster_dataset.py` |
 | Materna MT-1 | `data/tr_materna_mt1.npy`, `data/va_materna_mt1.npy`, `data/te_materna_mt1.npy` | `scripts/prepare_materna_workload_dataset.py` |
@@ -31,15 +31,19 @@ mkdir -p data external
 
 ## ECW Workload Files
 
-The ECW files are already preprocessed in the original DynEformer/One for All data package. They are not redistributed here because the raw business logs and machine metadata are external to this repository.
-
-Copy the processed files into `data/`:
+The ECW files can be downloaded from the public ECW dataset repository:
 
 ```bash
-cp /path/to/original_ecw/ECW_08.npy data/
-cp /path/to/original_ecw/ECW_newmac.pkl data/
-cp /path/to/original_ecw/ECW_newapp.pkl data/
-cp /path/to/original_ecw/Task_ID_Dict.pkl data/
+git clone https://github.com/hsy23/ECWDataset.git external/ECWDataset
+```
+
+Copy the required processed files into `data/`:
+
+```bash
+cp external/ECWDataset/ECW_08.npy data/
+cp external/ECWDataset/ECW_newmac.pkl data/
+cp external/ECWDataset/ECW_newapp.pkl data/
+cp external/ECWDataset/Task_ID_Dict.pkl data/
 ```
 
 Expected shapes:
