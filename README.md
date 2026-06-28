@@ -71,55 +71,6 @@ data/te_materna_mt3.npy
 
 See [data/README.md](data/README.md) for the expected file list and [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md) for dataset sources and preparation commands.
 
-## Quick Smoke Test
-
-This test creates a tiny synthetic dataset in a temporary directory, runs one MPG-Former epoch, and deletes the temporary files afterwards. It is intended only to check that the code path is wired correctly.
-
-```bash
-cd /path/to/MPGFormer
-conda activate MPGFormer
-
-TMP_DIR=$(mktemp -d)
-TMP_DIR="$TMP_DIR" python - <<'PY'
-import os
-import numpy as np
-
-rng = np.random.default_rng(7)
-t = np.arange(96, dtype=np.float32)
-
-def make_data(num_series):
-    data = np.zeros((num_series, 96, 4), dtype=np.float32)
-    for i in range(num_series):
-        target = 0.5 + 0.2 * np.sin(2 * np.pi * t / 24 + i * 0.15)
-        target += 0.04 * rng.normal(size=t.shape)
-        data[i, :, 0] = target
-        data[i, :, 1] = t // 24
-        data[i, :, 2] = t % 24
-        data[i, :, 3] = rng.normal(size=t.shape)
-    return data
-
-np.save(os.path.join(os.environ["TMP_DIR"], "train.npy"), make_data(8))
-np.save(os.path.join(os.environ["TMP_DIR"], "test.npy"), make_data(4))
-PY
-
-cd models/MPGFormer
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=../.. \
-python train_mpgformer.py \
-  --data "$TMP_DIR/train.npy" \
-  --test_data "$TMP_DIR/test.npy" \
-  --epochs 1 \
-  --batch_size 2 \
-  --enc_len 48 \
-  --label_len 12 \
-  --pred_len 24 \
-  --input_size 4 \
-  --static_start 4 \
-  --save_dir "$TMP_DIR/checkpoints"
-
-cd ../..
-rm -rf "$TMP_DIR"
-```
-
 ## Train MPG-Former
 
 Run from [models/MPGFormer](models/MPGFormer):
@@ -159,24 +110,11 @@ The [models/baseline](models/baseline) directory contains adapted implementation
 
 ## Results and Figures
 
-The [results/](results/) directory contains CSV files for sensitivity, ablation, and interpretability analyses. The [figures/](figures/) directory contains generated PDF figures that can be directly used in LaTeX.
+The [results/](results/) directory contains CSV files for sensitivity, ablation, efficiency, and interpretability analyses. The [figures/](figures/) directory contains generated figures for the reported analyses.
 
 ```bash
 python scripts/draw_mpgformer_sensitivity.py
 python scripts/draw_mpgformer_interpretability.py
-```
-
-## Citation
-
-If this repository is useful for your research, please cite:
-
-```bibtex
-@article{mpgformer2026,
-  title   = {MPG-Former: Drift-Aware Multi-scale Prototype-Graph Transformer for Cloud Workload Forecasting},
-  author  = {Anonymous Authors},
-  journal = {Under Review},
-  year    = {2026}
-}
 ```
 
 ## License
