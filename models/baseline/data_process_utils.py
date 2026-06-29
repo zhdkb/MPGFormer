@@ -213,7 +213,7 @@ def static_features_merge(mac_attr, workload_data):  # Merging workload data wit
     # Task attribute cleaning and processing
     data_base = data_base[data_base['specific_tasks'] != '[]']
     data_base['specific_tasks'] = data_base['specific_tasks'].apply(
-        lambda x: re.split(r'[,，;、\s]\s*', x.strip('[]')))
+        lambda x: re.split(r'[,;\uFF0C\u3001\s]\s*', x.strip('[]')))
     data_base = data_base[data_base['specific_tasks'].apply(lambda x: len(x) == 1)]
     data_base['specific_tasks'] = data_base['specific_tasks'].apply(lambda x: x[0].replace("'", "").replace('"', ''))
     data_base['task_id'] = data_base['specific_tasks'].apply(lambda x: task2id(x, Task_ID_Dict))
