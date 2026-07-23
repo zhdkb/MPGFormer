@@ -14,7 +14,7 @@ except ImportError:
     tqdm = lambda x: x
 
 from mpgformer import MPGFormer
-from data import MPGFormerWindowDataset, chronological_train_val_test_split, split_train_validation
+from data import MPGFormerWindowDataset, chronological_split, chronological_train_val_test_split
 from losses import MPGFormerLoss
 
 
@@ -178,11 +178,18 @@ def main():
 
     # MPGFormer windows require a full encoder history plus prediction horizon.
     if args.test_data:
-        train_raw, val_raw = split_train_validation(
-            data,
-            val_ratio=args.val_ratio,
-            min_periods=min_window,
-        )
+        train_periods = data.shape[1]
+        train_len = int(train_periods * (1.0 - args.val_ratio))
+        val_len = train_periods - train_len
+        if train_len < min_window or val_len < min_window:
+            max_val_ratio = 1.0 - min_window / train_periods
+            raise ValueError(
+                "MPGFormer needs at least enc_len + pred_len time points in both training and validation splits. "
+                f"Got train_file_periods={train_periods}, train_len={train_len}, val_len={val_len}, "
+                f"required_window={min_window}. Use --val_ratio no larger than {max_val_ratio:.3f}, "
+                "or reduce --enc_len/--pred_len."
+            )
+        train_raw, val_raw = chronological_split(data, train_ratio=1.0 - args.val_ratio)
         test_raw = load_array(args.test_data)
         if train_raw.shape[-1] != test_raw.shape[-1]:
             raise ValueError(
