@@ -81,3 +81,16 @@ def chronological_split(array, train_ratio: float = 0.8) -> Tuple[np.ndarray, np
     data = np.asarray(array, dtype=np.float32)
     train_len = int(data.shape[1] * train_ratio)
     return data[:, :train_len], data[:, train_len:]
+
+
+def chronological_train_val_test_split(
+    array,
+    train_ratio: float = 0.8,
+    val_ratio: float = 0.1,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Split each series into train/validation/test blocks along time."""
+
+    data = np.asarray(array, dtype=np.float32)
+    train_end = int(data.shape[1] * train_ratio)
+    val_end = int(data.shape[1] * (train_ratio + val_ratio))
+    return data[:, :train_end], data[:, train_end:val_end], data[:, val_end:]
