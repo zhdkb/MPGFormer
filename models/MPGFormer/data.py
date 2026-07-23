@@ -94,3 +94,23 @@ def chronological_train_val_test_split(
     train_end = int(data.shape[1] * train_ratio)
     val_end = int(data.shape[1] * (train_ratio + val_ratio))
     return data[:, :train_end], data[:, train_end:val_end], data[:, val_end:]
+
+
+def split_train_validation(
+    array,
+    val_ratio: float = 0.1,
+    min_periods: int = 72,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Split a training tensor for checkpoint selection without touching test data."""
+
+    data = np.asarray(array, dtype=np.float32)
+    train_periods = int(data.shape[1] * (1.0 - val_ratio))
+    val_periods = data.shape[1] - train_periods
+    if train_periods >= min_periods and val_periods >= min_periods:
+        return data[:, :train_periods], data[:, train_periods:]
+
+    val_count = max(1, int(data.shape[0] * val_ratio))
+    train_count = data.shape[0] - val_count
+    if train_count < 1:
+        raise ValueError("Need at least two samples to create a validation split.")
+    return data[:train_count], data[train_count:]
