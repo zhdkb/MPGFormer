@@ -231,6 +231,7 @@ def main():
         test_raw[:, :, 0] = test_raw[:, :, 0] / 10.0
 
     print(f"train data: {train_raw.shape}")
+    print(f"val data: {val_raw.shape}")
     print(f"test data: {test_raw.shape}")
 
     train_raw, val_raw, test_raw, _, target_scaler = scale_dynamic(train_raw, val_raw, test_raw, args.input_size)
@@ -360,15 +361,19 @@ def main():
             f"smape(%)={val_smape:.16f}"
         )
 
-    model.load_state_dict(torch.load(best_path, map_location=device))
-    best_loss, best_mse, best_mae, best_smape = evaluate(
-        model, test_loader, criterion, device, static_dim, target_scaler
-    )
-    best_score = select_checkpoint_score(args.select_metric, best_loss, best_mse, best_mae)
     print(
         f"best_epoch={best_epoch:03d}, select_metric={args.select_metric}, best_score={best_score:.16f}, "
-        f"best_loss={best_loss:.16f}, best_mse={best_mse:.16f}, best_mae={best_mae:.16f}, "
-        f"best_smape(%)={best_smape:.16f}"
+        f"best_val_loss={best_loss:.16f}, best_val_mse={best_mse:.16f}, best_val_mae={best_mae:.16f}, "
+        f"best_val_smape(%)={best_smape:.16f}"
+    )
+
+    model.load_state_dict(torch.load(best_path, map_location=device))
+    test_loss, test_mse, test_mae, test_smape = evaluate(
+        model, test_loader, criterion, device, static_dim, target_scaler
+    )
+    print(
+        f"test_loss={test_loss:.16f}, test_mse={test_mse:.16f}, "
+        f"test_mae={test_mae:.16f}, test_smape(%)={test_smape:.16f}"
     )
 
 
