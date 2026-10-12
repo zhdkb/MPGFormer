@@ -1,8 +1,10 @@
 import argparse
 import os
 import random
+from pathlib import Path
 
 import numpy as np
+from protocol import pool_training_partition
 import torch
 import torch.nn as nn
 from sklearn.mixture import GaussianMixture
@@ -29,18 +31,15 @@ def parse_candidates(value):
     return [int(x.strip()) for x in value.split(",") if x.strip()]
 
 
-def make_windows(data, series_len, step, train_ratio, target_col):
+def make_windows(data, series_len, step, target_col):
     raw = np.load(open(data, "rb"), allow_pickle=True).astype(float)
     if raw.ndim == 3:
-        raw[:, :, target_col] = raw[:, :, target_col] / 10.0
+        raw = pool_training_partition(raw, data)
         workload = raw[:, :, target_col]
     elif raw.ndim == 2:
-        workload = raw / 10.0
+        workload = raw
     else:
         raise ValueError("Expected a 2D or 3D numpy array, got shape {}".format(raw.shape))
-
-    train_len = int(train_ratio * workload.shape[1])
-    workload = workload[:, :train_len]
 
     seasonal = []
     for s in tqdm(workload, desc="STL seasonal"):
@@ -113,10 +112,9 @@ def main(args):
         args.dataX_dir,
         args.series_len,
         args.step,
-        args.train_ratio,
         args.target_col,
     )
-    print("Azure pool search windows:", windows.shape)
+    print("Pool search windows:", windows.shape)
 
     x = torch.from_numpy(windows).float().to(device)
     model = AutoEncoder(args.series_len, args.hid_dim).to(device)
@@ -163,7 +161,7 @@ def main(args):
         os.makedirs(args.output_dir, exist_ok=True)
         out = os.path.join(
             args.output_dir,
-            "azure_k_search_s{}_s{}.csv".format(args.series_len, args.step),
+            "{}_k_search_s{}_s{}.csv".format(Path(args.dataX_dir).stem, args.series_len, args.step),
         )
         with open(out, "w", encoding="utf-8") as f:
             f.write("k,bic,aic\n")
@@ -173,11 +171,10 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Search the Azure global-pool K with AE latent GMM BIC.")
+    parser = argparse.ArgumentParser(description="Search the global-pool K with AE latent GMM BIC.")
     parser.add_argument("--dataX_dir", type=str, default="../../../../data/tr_vm.npy")
     parser.add_argument("--series_len", type=int, default=48)
     parser.add_argument("--step", type=int, default=12)
-    parser.add_argument("--train_ratio", type=float, default=0.8)
     parser.add_argument("--target_col", type=int, default=0)
     parser.add_argument("--hid_dim", type=int, default=10)
     parser.add_argument("--pre_epoch", type=int, default=500)

@@ -2,6 +2,7 @@ import argparse
 from dataloader import *
 from model_vade import VaDE
 import numpy as np
+from protocol import pool_training_partition
 from build_global_pool import build_gp
 
 
@@ -27,8 +28,7 @@ if __name__ == '__main__':
     X = np.load(open(args.dataX_dir, 'rb'), allow_pickle=True)
     X = np.asarray(X)
 
-    train_len = int(0.8*X.shape[1])
-    X_train = X[:, :train_len, 0]
+    X_train = pool_training_partition(X, args.dataX_dir)[:, :, 0]
 
     vade = VaDE(args, X_train)
     if args.cuda:

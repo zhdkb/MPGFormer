@@ -276,9 +276,9 @@ PYTHONPATH="$REPO" python micn_workload_main.py \
 
 ## 4. DynEformer
 
-DynEformer requires a dataset-specific Global Pool before training. First search the number of clusters `K`, then build the pool, and finally run the corresponding DynEformer script.
+DynEformer requires a Global Pool before training. The ECW commands use a fixed cluster count; the Azure, Google, and Materna commands search for `K` on training data before building a pool.
 
-For ECW, New Infras., and New App, the original paper path uses `K=551`.
+For ECW, New Infras., and New App, use `K=551`.
 
 ### ECW, New Infras., and New App
 
@@ -292,8 +292,8 @@ PYTHONPATH="$REPO" python global_pooling_main.py \
 
 cd "$REPO/models/baseline/DynEformer"
 PYTHONPATH="$REPO" python dyneformer_main.py --num_epoches 300 --batch_size 256 --seed "$SEED"
-PYTHONPATH="$REPO" python dynet_newmac.py --batch_size 32
-PYTHONPATH="$REPO" python dynet_newadded.py
+PYTHONPATH="$REPO" python dynet_newmac.py --batch_size 32 --seed "$SEED"
+PYTHONPATH="$REPO" python dynet_newadded.py --seed "$SEED"
 ```
 
 ### Azure, Google v1, and Materna
@@ -316,7 +316,7 @@ PYTHONPATH="$REPO" python search_azure_k.py \
 Build the pool with the printed `BEST_K_BY_BIC`:
 
 ```bash
-export BEST_K=<BEST_K_BY_BIC>
+export BEST_K=REPLACE_WITH_PRINTED_INTEGER
 
 cd "$REPO/models/baseline/GlobalPooling/vade_pooling"
 PYTHONPATH="$REPO" python global_pooling_main.py \
@@ -359,10 +359,10 @@ Run only the command that matches the selected dataset.
 ## 5. Notes
 
 - Prepare datasets first with [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md).
-- All scripts reserve validation data before fitting scalers. Validation MSE selects the best checkpoint; the test set is evaluated once afterward.
+- Training entries fit scalers on their training partitions. Validation MSE selects the checkpoint, followed by one test evaluation. DynEformer's global pool is fitted on the training partition.
 - ECW uses chronological 64/16/20 train/validation/test; New Infras. and New App use an 80/20 source-trace train/validation split plus a separate test trace. Azure and Google reserve 20% of training series IDs (fixed split seed 0). Materna uses its separate 70/10/20 train/validation/test files.
-- For the paper protocol, run every model and dataset with matched `--seed` values 0 through 10, capture each final test metric, and report mean ± sample SD. Compute paired differences from matching seed IDs. Do not select epochs or hyperparameters with test metrics.
-- Each run emits a `TEST_METRICS` JSON line. Save logs for all 11 seeds and summarize them with `python "$REPO/scripts/summarize_seed_runs.py" run.log --baseline <preselected_model_name>`. The script requires exactly seeds 0 through 10, reports sample SD, and computes paired 95% t intervals. Choose the comparator before inspecting test results.
+- Run each model and dataset with matched `--seed` values 0 through 10. Report the mean and sample SD of the final test metrics.
+- Each model training or evaluation command emits a `TEST_METRICS` JSON line. Combine the logs for models being compared, then run `python "$REPO/scripts/summarize_seed_runs.py" all_runs.log --baseline informer_workload_main` (substitute the desired baseline name). The script checks the 11 seed IDs and reports paired 95% t intervals.
 - All scripts report MSE, MAE, and SMAPE on the inverse-scaled workload target.
 - Azure target scaling follows the same convention across MPGFormer and baselines.
 - Use smaller `EPOCHS` for quick debugging, but keep the listed values for paper reproduction.

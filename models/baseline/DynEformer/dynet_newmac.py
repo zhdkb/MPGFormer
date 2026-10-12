@@ -1,20 +1,14 @@
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from torch import nn
 import argparse
-import math
 from dyneformer_tune import DynEformer
-from sklearn import preprocessing
 import torch
-import time
 import pickle
+from protocol import report_test_metrics
 
 from models.baseline.GlobalPooling.vade_pooling.GlobalPool import GlobalPool
 from models.baseline.pickle_compat import register_globalpool_aliases
 
 register_globalpool_aliases()
-from models.baseline.global_utils import draw_data_plots
 
 
 
@@ -48,8 +42,8 @@ def batch_generator_padding(X, Y, num_obs_to_train, seq_len, step):
 
 
 def reference(X, y, args):
-    model = torch.load('saved_model/DynEformer_best_n551_drop01.pt')
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    model = torch.load('saved_model/DynEformer_best_n551_drop01.pt', map_location=device, weights_only=False)
 
     num_ts, num_periods, num_features = X.shape
     input_size = 4  # encoder input dimension: bandwidth plus date markers
@@ -97,6 +91,8 @@ def reference(X, y, args):
         print('The Mean Squared Error of forecasts is {} (raw)'.format(test_mse))
         print('The Mean Absolute Error of forecasts is {} (raw)'.format(test_mae))
         print('The SMAPE of forecasts is {}% (raw)'.format(test_smape))
+        report_test_metrics('dyneformer_main', args.seed, 'ECW_08.npy', 'ECW_newmac.pkl',
+                            test_mse, test_mae, test_smape)
 
 
 if __name__ == "__main__":
@@ -107,6 +103,7 @@ if __name__ == "__main__":
     parser.add_argument("--out_seq_len", "-ol", type=int, default=24)  # prediction length
     parser.add_argument("--enc_seq_len", "-not", type=int, default=24 * 2)  # encoder history length
     parser.add_argument("--batch_size", "-b", type=int, default=64)  # inference batch size
+    parser.add_argument("--seed", type=int, default=2)
 
     parser.add_argument("--run_test", "-rt", action="store_true", default=True)
 

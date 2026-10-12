@@ -58,7 +58,7 @@ def summarize(records, baseline=None, metric="mae"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("logs", nargs="+", help="Training logs containing TEST_METRICS lines")
-    parser.add_argument("--baseline", help="Comparator selected before test inspection")
+    parser.add_argument("--baseline", help="Model name for paired differences")
     parser.add_argument("--metric", choices=("mse", "mae", "smape"), default="mae")
     args = parser.parse_args()
     summarize(read_records(args.logs), args.baseline, args.metric)

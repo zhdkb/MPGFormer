@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from protocol import split_workload
+from protocol import pool_training_partition, split_workload
 
 
 class SplitProtocolTest(unittest.TestCase):
@@ -41,6 +41,21 @@ class SplitProtocolTest(unittest.TestCase):
         np.testing.assert_array_equal(train, self.data)
         np.testing.assert_array_equal(val, val_file)
         np.testing.assert_array_equal(test, test_file)
+
+    def test_global_pool_uses_training_partition(self):
+        ecw_train = split_workload(self.data, "ECW_08.npy")[0]
+        np.testing.assert_array_equal(
+            pool_training_partition(self.data, "ECW_08.npy"), ecw_train
+        )
+        azure_train = split_workload(
+            self.data, "tr_vm_official.npy", self.data + 100000
+        )[0]
+        np.testing.assert_array_equal(
+            pool_training_partition(self.data, "tr_vm_official.npy"), azure_train
+        )
+        np.testing.assert_array_equal(
+            pool_training_partition(self.data, "tr_materna_mt1.npy"), self.data
+        )
 
 
 if __name__ == "__main__":

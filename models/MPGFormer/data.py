@@ -11,8 +11,8 @@ class MPGFormerWindowDataset(Dataset):
     """Create rolling forecasting windows from a 3-D workload array.
 
     Input arrays are expected to follow ``[num_series, num_periods, num_features]``.
-    For every generated sample, the future target channel is masked to zero so
-    the model cannot leak labels through the decoder input.
+    For every generated sample, the future target channel in the decoder input
+    is set to zero.
     """
 
     def __init__(

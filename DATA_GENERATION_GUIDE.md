@@ -22,7 +22,7 @@ mkdir -p data external
 
 | Dataset | Required processed files | Source/preparation |
 | --- | --- | --- |
-| ECW | `data/ECW_08.npy`, `data/ECW_newmac.pkl`, `data/ECW_newapp.pkl`, `data/Task_ID_Dict.pkl` | Preprocessed files from `hsy23/ECWDataset` |
+| ECW | `data/ECW_08.npy`, `data/ECW_newmac.pkl`, `data/ECW_newapp.pkl` | Preprocessed files from `hsy23/ECWDataset` |
 | Microsoft Azure | `data/tr_vm_official.npy`, `data/te_vm_official.npy` | `scripts/prepare_azure_vm_dataset.py` |
 | Google v1 | `data/tr_google_v1.npy`, `data/te_google_v1.npy` | `scripts/prepare_google_cluster_dataset.py` |
 | Materna MT-1 | `data/tr_materna_mt1.npy`, `data/va_materna_mt1.npy`, `data/te_materna_mt1.npy` | `scripts/prepare_materna_workload_dataset.py` |
@@ -43,7 +43,6 @@ Copy the required processed files into `data/`:
 cp external/ECWDataset/ECW_08.npy data/
 cp external/ECWDataset/ECW_newmac.pkl data/
 cp external/ECWDataset/ECW_newapp.pkl data/
-cp external/ECWDataset/Task_ID_Dict.pkl data/
 ```
 
 Expected shapes:
@@ -97,7 +96,7 @@ The generated Azure tensors use the feature layout `[workload, day, hour, minute
 
 ## Google Cluster Trace v1
 
-Google Cluster Trace v1 can be downloaded directly from the official public storage URL used in `scripts/prepare_google_cluster_dataset.py`.
+The Google Cluster Trace v1 preparation script uses the URL assigned to `GOOGLE_V1_URL` in `scripts/prepare_google_cluster_dataset.py`.
 
 Automatic download and preprocessing:
 

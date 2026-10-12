@@ -1,8 +1,7 @@
 """MPGFormer main model.
 
-This file intentionally keeps only the high-level forecasting pipeline. The
-implementation details live in ``modules/`` so each component can be inspected,
-tested, or replaced independently without changing the public model interface.
+This file defines the forecasting pipeline. Component implementations live in
+``modules/`` and share the public model interface defined here.
 """
 
 from typing import Optional, Sequence, Tuple

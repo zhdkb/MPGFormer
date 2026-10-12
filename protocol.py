@@ -1,11 +1,7 @@
-"""Dataset splits shared by the forecasting reproduction entries.
+"""Dataset partitions and metric records for forecasting experiments."""
 
-The split seed is fixed across model seeds so paired runs use identical examples.
-No test examples are returned as validation examples.
-"""
-
-from pathlib import Path
 import json
+from pathlib import Path
 
 import numpy as np
 
@@ -39,6 +35,23 @@ def split_workload(train, train_path, test=None, validation=None, split_seed=0):
     if min(len(tr), len(va), len(te)) == 0 or min(tr.shape[1], va.shape[1], te.shape[1]) == 0:
         raise ValueError("Train, validation and test splits must all be nonempty")
     return tr.copy(), va.copy(), te.copy()
+
+
+def pool_training_partition(data, train_path, split_seed=0):
+    """Return the training observations used to fit a DynEformer global pool."""
+    data = np.asarray(data)
+    if data.ndim != 3:
+        raise ValueError("Expected a [series, time, features] array")
+    name = Path(train_path).name.lower()
+    if "ecw" in name:
+        return data[:, :int(0.64 * data.shape[1])].copy()
+    if "materna" in name:
+        return data.copy()
+    ids = np.random.default_rng(split_seed).permutation(data.shape[0])
+    n_val = max(1, int(np.ceil(0.2 * len(ids))))
+    if n_val == len(ids):
+        raise ValueError("Series holdout requires at least two training series")
+    return data[ids[n_val:]].copy()
 
 
 def report_test_metrics(model, seed, train_path, test_path, mse, mae, smape):

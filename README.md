@@ -1,6 +1,6 @@
 # MPGFormer
 
-Official implementation of **MPGFormer: Drift-Aware Multi-scale Prototype-Graph Transformer for Cloud Workload Forecasting**.
+Implementation of **MPGFormer: Drift-Aware Multi-scale Prototype-Graph Transformer for Cloud Workload Forecasting**.
 
 MPGFormer formulates cloud workload forecasting as a drift-aware evidence selection problem. Given a historical workload window, the model extracts temporal evidence, multi-scale time-frequency prototype evidence, and dynamic graph evidence, then adaptively routes these evidence sources for multi-step workload prediction.
 
@@ -10,20 +10,18 @@ MPGFormer formulates cloud workload forecasting as a drift-aware evidence select
 - **Multi-scale time-frequency prototype retrieval** for reusable workload shape patterns.
 - **Batch-wise dynamic graph evidence** for cross-workload co-fluctuation modeling.
 - **Drift-aware evidence routing** that combines temporal, prototype, and graph contexts.
-- **Point and interval forecasting** with MSE, MAE, and SMAPE evaluation.
+- **Point and quantile forecasts** with point-error evaluation using MSE, MAE, and SMAPE.
 
 ## Repository Structure
 
 ```text
 .
-├── models/
-│   ├── MPGFormer/          # Proposed model and training entry
-│   └── baseline/           # Adapted baseline implementations
-├── scripts/                # Dataset preparation scripts
-├── data/                   # Put processed datasets here
-├── DATA_GENERATION_GUIDE.md
-├── REPRODUCE_ALL_MODELS_COMMANDS.md
-└── requirements.txt
+models/                       Model implementations and training entries
+scripts/                      Dataset preparation and result summary
+data/                         Processed dataset location
+DATA_GENERATION_GUIDE.md      Dataset preparation instructions
+REPRODUCE_ALL_MODELS_COMMANDS.md  Training commands
+requirements.txt              Python dependencies
 ```
 
 Large raw datasets and checkpoints are not included. Prepare processed tensors with [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md), and keep them under [data/](data/).

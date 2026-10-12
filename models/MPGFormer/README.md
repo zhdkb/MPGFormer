@@ -6,8 +6,9 @@ MPGFormer is implemented in code as `MPGFormer`. It is a workload forecasting mo
 - non-stationary temporal attention,
 - short-term CNN/GRU encoding,
 - dynamic graph contrastive learning,
-- point and quantile forecasting,
-- adaptive conformal interval calibration.
+- point and quantile forecasting.
+
+An online conformal calibration utility is available separately from the default training entry.
 
 ## Input
 
@@ -37,5 +38,11 @@ The first feature is treated as the target workload by default. Future target va
 From `models/MPGFormer`:
 
 ```bash
-python train_mpgformer.py --data ../../data/ECW_08.npy --epochs 80
+PYTHONPATH=../.. python train_mpgformer.py \
+  --data ../../data/ECW_08.npy \
+  --epochs 300 \
+  --batch_size 64 \
+  --enc_len 48 \
+  --label_len 12 \
+  --pred_len 24
 ```

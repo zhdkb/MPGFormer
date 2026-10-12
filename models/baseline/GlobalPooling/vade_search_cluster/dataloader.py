@@ -1,8 +1,6 @@
 import pickle
 import numpy as np
 import torch
-from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader, TensorDataset
 import random
 from sklearn.preprocessing import MinMaxScaler
