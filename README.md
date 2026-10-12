@@ -21,9 +21,6 @@ MPGFormer formulates cloud workload forecasting as a drift-aware evidence select
 │   └── baseline/           # Adapted baseline implementations
 ├── scripts/                # Dataset preparation scripts
 ├── data/                   # Put processed datasets here
-├── results/                # CSV files used for reported analysis
-├── figures/                # Paper figures and generated analysis figures
-├── docs/                   # Paper draft and architecture notes
 ├── DATA_GENERATION_GUIDE.md
 ├── REPRODUCE_ALL_MODELS_COMMANDS.md
 └── requirements.txt
@@ -62,10 +59,13 @@ data/te_vm_official.npy
 data/tr_google_v1.npy
 data/te_google_v1.npy
 data/tr_materna_mt1.npy
+data/va_materna_mt1.npy
 data/te_materna_mt1.npy
 data/tr_materna_mt2.npy
+data/va_materna_mt2.npy
 data/te_materna_mt2.npy
 data/tr_materna_mt3.npy
+data/va_materna_mt3.npy
 data/te_materna_mt3.npy
 ```
 
@@ -108,9 +108,9 @@ Commands for MPGFormer and all baselines are summarized in [REPRODUCE_ALL_MODELS
 
 The [models/baseline](models/baseline) directory contains adapted implementations for Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, and MICN. These implementations use the same processed data format and evaluation scale whenever possible.
 
-## Results and Figures
+## Evaluation protocol
 
-The [results/](results/) directory contains CSV files for sensitivity, ablation, efficiency, and interpretability analyses. The [figures/](figures/) directory contains generated figures for the reported analyses.
+Training data alone fits the scalers. Validation MSE selects the checkpoint; the held-out test set is evaluated only once after training. Use 11 matched seeds and report the mean and sample SD of their final test metrics. See [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md) for dataset splits and commands.
 
 ## License
 

@@ -1,4 +1,6 @@
 import numpy as np
+import copy
+from protocol import split_workload, report_test_metrics
 import pandas as pd
 import random
 from torch import nn
@@ -77,7 +79,10 @@ class PPIO_Dataset(Dataset):
 
 
 def train(X, y, args):
-    device = torch.device('cuda:0')
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     input_size = 4
     cn = 551
     print('cn: {}'.format(cn))
@@ -96,32 +101,63 @@ def train(X, y, args):
     model = model.to(device)
 
     optimizer = Adam(model.parameters(), lr=args.lr)
-    random.seed(2)
-    # select sku with most top n quantities
-
-    Xtr, ytr, Xte, yte = train_test_split(X, y)
+    Xtr, Xva, Xte = split_workload(X, "ECW_08.npy")
+    ytr = Xtr[:, :, 0]
     xscaler = preprocessing.MinMaxScaler()
     yscaler = preprocessing.MinMaxScaler()
     num_ts, num_periods, num_features = Xtr.shape
     Xtr = xscaler.fit_transform(Xtr.reshape(-1, num_features)).reshape(num_ts, num_periods, num_features)
+    num_ts, num_periods, num_features = Xva.shape
+    Xva = xscaler.transform(Xva.reshape(-1, num_features)).reshape(num_ts, num_periods, num_features)
     num_ts, num_periods, num_features = Xte.shape
     Xte = xscaler.transform(Xte.reshape(-1, num_features)).reshape(num_ts, num_periods, num_features)
     yscaler.fit(ytr.reshape(-1, 1))
     Xtr_loader = DataLoader(PPIO_Dataset(Xtr), batch_size=args.batch_size)
+    Xva_loader = DataLoader(PPIO_Dataset(Xva), batch_size=args.batch_size)
     Xte_loader = DataLoader(PPIO_Dataset(Xte), batch_size=args.batch_size)
 
     pickle.dump([xscaler, yscaler], open('saved_model/dyne_data_scaler_tmp.pkl', 'wb'))
 
     losses = []
-    test_loss = []
-    test_mse = []
-    test_mae = []
-    test_smape = []
     mse = nn.MSELoss().to(device)
 
-    min_loss = 1000
+    def evaluate(loader):
+        epo_test_losses = []
+        epo_mse = []
+        epo_mape = []
+        epo_mae = []
+        epo_smape = []
+        model.eval()
+        with torch.no_grad():
+            for x, y in loader:
+                x_load = x.float().to(device)[:, :, :4]
+                x_static = x.float().to(device)[:, 0, 4:].squeeze(1)
+                y = y.float().to(device)
+
+                yPred = model(x_load, globalPool, x_static)
+
+                loss = mse(yPred, y)
+
+                epo_test_losses.append(loss.item())
+                epo_mse.append(get_mse(yPred.cpu(), y.cpu(), yscaler))
+                epo_mape.append(get_mape(yPred.cpu(), y.cpu(), yscaler))
+                epo_mae.append(get_mae(yPred.cpu(), y.cpu(), yscaler))
+                epo_smape.append(get_smape(yPred.cpu(), y.cpu(), yscaler))
+
+        epoch_loss = float(np.mean(epo_test_losses))
+        epoch_mse = float(np.mean(epo_mse))
+        epoch_mae = float(np.mean(epo_mae))
+        epoch_smape = float(np.mean(epo_smape))
+        return epoch_loss, epoch_mse, epoch_mae, epoch_smape
+
+
+
+    min_loss = float("inf")
+    best_state = None
+    best_epoch = None
     # training
     for epoch in tqdm(range(args.num_epoches)):
+        model.train()
         train_epoch_loss = []
         for Xtrain, ytrain in Xtr_loader:
             Xtrain_tensor = Xtrain.float().to(device)[:, :, :4]
@@ -137,44 +173,21 @@ def train(X, y, args):
 
         losses.append(np.average(train_epoch_loss))
 
-        epo_test_losses = []
-        epo_mse = []
-        epo_mape = []
-        epo_mae = []
-        epo_smape = []
-        model.eval()
-        with torch.no_grad():
-            for x, y in Xte_loader:
-                x_load = x.float().to(device)[:, :, :4]
-                x_static = x.float().to(device)[:, 0, 4:].squeeze(1)
-                y = y.float().to(device)
-
-                yPred = model(x_load, globalPool, x_static)
-
-                loss = mse(yPred, y)
-
-                epo_test_losses.append(loss.item())
-                epo_mse.append(get_mse(yPred.cpu(), y.cpu(), yscaler))
-                epo_mape.append(get_mape(yPred.cpu(), y.cpu(), yscaler))
-                epo_mae.append(get_mae(yPred.cpu(), y.cpu(), yscaler))
-                epo_smape.append(get_smape(yPred.cpu(), y.cpu(), yscaler))
-
-        test_loss.append(np.mean(epo_test_losses))
-        test_mse.append(np.mean(epo_mse))
-        # test_mape.append(np.mean(epo_mape))
-        test_mae.append(np.mean(epo_mae))
-        test_smape.append(np.mean(epo_smape))
-
-        if args.save_model:
-            if test_loss[-1] < min_loss:
-                best_model = model
-                min_loss = test_loss[-1]
+        val_loss, val_mse, val_mae, val_smape = evaluate(Xva_loader)
+        if val_mse < min_loss:
+            min_loss = val_mse
+            best_state = copy.deepcopy(model.state_dict())
+            best_epoch = epoch
+            if args.save_model:
                 torch.save(model, 'saved_model/DynEformer_best_n{}_drop01.pt'.format(cn))
+        print(f"epoch {epoch}, train loss: {losses[-1]}, val loss: {val_loss}, mse: {val_mse}, mae: {val_mae}, smape(%): {val_smape}")
+    model.load_state_dict(best_state)
+    test_metrics = evaluate(Xte_loader)
+    print('best epoch: {}, validation mse: {}'.format(best_epoch, min_loss))
+    print('test loss: {}, test mse: {}, test mae: {}, test smape(%): {}'.format(*test_metrics))
+    report_test_metrics('dyneformer_main', args.seed, 'ECW_08.npy', None, *test_metrics[1:])
+    return losses, *test_metrics
 
-        print(f'epoch {epoch}, train loss: {losses[-1]}, test loss: {test_loss[-1]}, mse: {test_mse[-1]}, mae: {test_mae[-1]}, smape(%): {test_smape[-1]}')
-    print(np.min(test_mse), np.min(test_mae), np.min(test_smape), np.argmin(test_mse))
-
-    return losses, test_loss, test_mse, test_mae, test_smape
 
 
 if __name__ == "__main__":
@@ -187,6 +200,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_epoches", "-e", type=int, default=300)
     parser.add_argument("-lr", type=float, default=1e-4)
     parser.add_argument("--batch_size", "-b", type=int, default=256)
+    parser.add_argument("--seed", type=int, default=2)
 
     parser.add_argument("--n_encoder_layers", "-nel", type=int, default=2)
     parser.add_argument("--n_decoder_layers", "-ndl", type=int, default=1)

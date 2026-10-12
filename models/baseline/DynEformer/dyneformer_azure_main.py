@@ -1,9 +1,11 @@
 import argparse
+import copy
 import os
 import pickle
 import random
 
 import numpy as np
+from protocol import split_workload, report_test_metrics
 import torch
 from sklearn import preprocessing
 from torch import nn
@@ -85,11 +87,15 @@ def train(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     os.makedirs("saved_model", exist_ok=True)
 
-    Xtr = np.load(open(args.train_data, "rb"), allow_pickle=True).astype(float)
-    Xte = np.load(open(args.test_data, "rb"), allow_pickle=True).astype(float)
+    Xtr, Xva, Xte = split_workload(
+        np.load(args.train_data, allow_pickle=True).astype(float), args.train_data,
+        np.load(args.test_data, allow_pickle=True).astype(float),
+        np.load(args.val_data, allow_pickle=True).astype(float) if args.val_data else None,
+    )
 
     # Keep the same preprocessing convention as the other Azure baseline scripts.
     Xtr[:, :, 0] = Xtr[:, :, 0] / 10.0
+    Xva[:, :, 0] = Xva[:, :, 0] / 10.0
     Xte[:, :, 0] = Xte[:, :, 0] / 10.0
     ytr = Xtr[:, :, 0]
 
@@ -99,6 +105,8 @@ def train(args):
 
     Xtr = xscaler.fit_transform(Xtr.reshape(-1, num_features)).reshape(num_ts, num_periods, num_features)
     num_ts_te, num_periods_te, _ = Xte.shape
+    num_ts_va, num_periods_va, _ = Xva.shape
+    Xva = xscaler.transform(Xva.reshape(-1, num_features)).reshape(num_ts_va, num_periods_va, num_features)
     Xte = xscaler.transform(Xte.reshape(-1, num_features)).reshape(num_ts_te, num_periods_te, num_features)
     yscaler.fit(ytr.reshape(-1, 1))
 
@@ -106,6 +114,11 @@ def train(args):
         AzureDataset(Xtr, enc_len=args.enc_seq_len, pred_len=args.out_seq_len, step=args.step),
         batch_size=args.batch_size,
         shuffle=True,
+    )
+    val_loader = DataLoader(
+        AzureDataset(Xva, enc_len=args.enc_seq_len, pred_len=args.out_seq_len, step=args.step),
+        batch_size=args.batch_size,
+        shuffle=False,
     )
     test_loader = DataLoader(
         AzureDataset(Xte, enc_len=args.enc_seq_len, pred_len=args.out_seq_len, step=args.step),
@@ -139,7 +152,33 @@ def train(args):
     optimizer = Adam(model.parameters(), lr=args.lr)
     criterion = nn.MSELoss().to(device)
 
+    def evaluate(loader):
+        model.eval()
+        test_losses = []
+        test_mses = []
+        test_maes = []
+        test_smapes = []
+        with torch.no_grad():
+            for x, y in loader:
+                x = x.float().to(device)
+                y = y.float().to(device)
+
+                y_pred = model(x[:, :, :num_features], global_pool, None)
+                loss = criterion(y_pred, y)
+
+                test_losses.append(loss.item())
+                test_mses.append(get_mse(y_pred.cpu(), y.cpu(), yscaler))
+                test_maes.append(get_mae(y_pred.cpu(), y.cpu(), yscaler))
+                test_smapes.append(get_smape(y_pred.cpu(), y.cpu(), yscaler))
+
+        epoch_loss = float(np.mean(test_losses))
+        epoch_mse = float(np.mean(test_mses))
+        epoch_mae = float(np.mean(test_maes))
+        epoch_smape = float(np.mean(test_smapes))
+        return epoch_loss, epoch_mse, epoch_mae, epoch_smape
+
     best_loss = float("inf")
+    best_state = None
     best_mse = None
     best_mae = None
     best_smape = None
@@ -161,31 +200,11 @@ def train(args):
             optimizer.step()
             train_losses.append(loss.item())
 
-        model.eval()
-        test_losses = []
-        test_mses = []
-        test_maes = []
-        test_smapes = []
-        with torch.no_grad():
-            for x, y in test_loader:
-                x = x.float().to(device)
-                y = y.float().to(device)
+        epoch_loss, epoch_mse, epoch_mae, epoch_smape = evaluate(val_loader)
 
-                y_pred = model(x[:, :, :num_features], global_pool, None)
-                loss = criterion(y_pred, y)
-
-                test_losses.append(loss.item())
-                test_mses.append(get_mse(y_pred.cpu(), y.cpu(), yscaler))
-                test_maes.append(get_mae(y_pred.cpu(), y.cpu(), yscaler))
-                test_smapes.append(get_smape(y_pred.cpu(), y.cpu(), yscaler))
-
-        epoch_loss = float(np.mean(test_losses))
-        epoch_mse = float(np.mean(test_mses))
-        epoch_mae = float(np.mean(test_maes))
-        epoch_smape = float(np.mean(test_smapes))
-
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
+        if epoch_mse < best_loss:
+            best_loss = epoch_mse
+            best_state = copy.deepcopy(model.state_dict())
             best_mse = epoch_mse
             best_mae = epoch_mae
             best_smape = epoch_smape
@@ -201,7 +220,7 @@ def train(args):
                 )
 
         print(
-            "epoch {}, train loss: {}, test loss: {}, mse: {}, mae: {}, smape(%): {}".format(
+            "epoch {}, train loss: {}, val loss: {}, mse: {}, mae: {}, smape(%): {}".format(
                 epoch,
                 float(np.mean(train_losses)),
                 epoch_loss,
@@ -213,10 +232,19 @@ def train(args):
 
     print("best epoch: {}, best mse: {}, best mae: {}, best smape(%): {}".format(best_epoch, best_mse, best_mae, best_smape))
 
+    model.load_state_dict(best_state)
+    test_loss, test_mse, test_mae, test_smape = evaluate(test_loader)
+    print("test loss: {}, test mse: {}, test mae: {}, test smape(%): {}".format(
+        test_loss, test_mse, test_mae, test_smape
+    ))
+
+    report_test_metrics(Path(__file__).stem, args.seed, args.train_data, args.test_data, test_mse, test_mae, test_smape)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_data", type=str, default="../../../data/tr_vm.npy")
+    parser.add_argument("--val_data", type=str, default="")
     parser.add_argument("--test_data", type=str, default="../../../data/te_vm.npy")
     parser.add_argument("--pool_clusters", type=int, default=100)
     parser.add_argument("--pool_step", type=int, default=12)

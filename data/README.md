@@ -28,10 +28,13 @@ te_vm_official.npy
 tr_google_v1.npy
 te_google_v1.npy
 tr_materna_mt1.npy
+va_materna_mt1.npy
 te_materna_mt1.npy
 tr_materna_mt2.npy
+va_materna_mt2.npy
 te_materna_mt2.npy
 tr_materna_mt3.npy
+va_materna_mt3.npy
 te_materna_mt3.npy
 ```
 

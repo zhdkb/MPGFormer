@@ -1,5 +1,0 @@
-dataset,state,mae,smape_percent,router_time,router_graph,router_proto,source
-mt2,stable,0.014,2.16,0.04,0.20,0.76,models/MPGFormer/main.tex:fig:interpretability
-mt2,bursty,1.933,6.94,0.87,0.08,0.06,models/MPGFormer/main.tex:fig:interpretability
-mt2,cofluctuation,0.037,1.17,0.15,0.63,0.22,models/MPGFormer/main.tex:fig:interpretability
-mt2,drifted,0.200,2.12,0.76,0.19,0.05,models/MPGFormer/main.tex:fig:interpretability

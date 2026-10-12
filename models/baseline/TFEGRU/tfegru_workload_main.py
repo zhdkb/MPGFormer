@@ -1,10 +1,12 @@
 import argparse
+import copy
 import os
 import pickle
 import random
 from pathlib import Path
 
 import numpy as np
+from protocol import split_workload, report_test_metrics
 import torch
 import torch.nn as nn
 from sklearn import preprocessing
@@ -77,23 +79,26 @@ class WorkloadDataset(Dataset):
 
 
 def prepare_data(args):
-    train_raw = load_workload(args.train_data)
-    if args.test_data:
-        test_raw = load_workload(args.test_data)
-    else:
-        train_raw, test_raw = split_by_time(train_raw, args.train_ratio)
+    train_raw, val_raw, test_raw = split_workload(
+        load_workload(args.train_data), args.train_data,
+        load_workload(args.test_data) if args.test_data else None,
+        load_workload(args.val_data) if args.val_data else None,
+    )
 
     if train_raw.shape[-1] != test_raw.shape[-1]:
         raise ValueError("Train/test feature count mismatch: {} vs {}".format(train_raw.shape, test_raw.shape))
 
     train_raw = train_raw.copy()
+    val_raw = val_raw.copy()
     test_raw = test_raw.copy()
     if use_dyn_azure_scale(args.train_data, args.test_data):
         train_raw[:, :, 0] = train_raw[:, :, 0] / 10.0
+        val_raw[:, :, 0] = val_raw[:, :, 0] / 10.0
         test_raw[:, :, 0] = test_raw[:, :, 0] / 10.0
 
     input_size = min(args.input_size, train_raw.shape[-1]) if args.input_size else train_raw.shape[-1]
     train_selected = train_raw[:, :, :input_size]
+    val_selected = val_raw[:, :, :input_size]
     test_selected = test_raw[:, :, :input_size]
 
     x_scaler = preprocessing.MinMaxScaler()
@@ -102,13 +107,16 @@ def prepare_data(args):
 
     n_train, t_train, f_train = train_selected.shape
     train_scaled = x_scaler.fit_transform(train_selected.reshape(-1, f_train)).reshape(n_train, t_train, f_train)
+    n_val, t_val, _ = val_selected.shape
+    val_scaled = x_scaler.transform(val_selected.reshape(-1, f_train)).reshape(n_val, t_val, f_train)
     n_test, t_test, _ = test_selected.shape
     test_scaled = x_scaler.transform(test_selected.reshape(-1, f_train)).reshape(n_test, t_test, f_train)
 
     y_train_scaled = y_scaler.transform(train_selected[:, :, 0].reshape(-1, 1)).reshape(n_train, t_train)
+    y_val_scaled = y_scaler.transform(val_selected[:, :, 0].reshape(-1, 1)).reshape(n_val, t_val)
     y_test_scaled = y_scaler.transform(test_selected[:, :, 0].reshape(-1, 1)).reshape(n_test, t_test)
 
-    return train_scaled, y_train_scaled, test_scaled, y_test_scaled, x_scaler, y_scaler
+    return train_scaled, y_train_scaled, val_scaled, y_val_scaled, test_scaled, y_test_scaled, x_scaler, y_scaler
 
 
 def evaluate(model, loader, criterion, device, y_scaler):
@@ -143,14 +151,20 @@ def main(args):
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
     os.makedirs(args.save_dir, exist_ok=True)
 
-    train_scaled, y_train_scaled, test_scaled, y_test_scaled, x_scaler, y_scaler = prepare_data(args)
+    train_scaled, y_train_scaled, val_scaled, y_val_scaled, test_scaled, y_test_scaled, x_scaler, y_scaler = prepare_data(args)
     print("train data:", args.train_data, train_scaled.shape)
+    print("validation data:", val_scaled.shape)
     print("test data:", args.test_data or "time split", test_scaled.shape)
 
     train_loader = DataLoader(
         WorkloadDataset(train_scaled, y_train_scaled, args.seq_len, args.pred_len, args.step),
         batch_size=args.batch_size,
         shuffle=True,
+    )
+    val_loader = DataLoader(
+        WorkloadDataset(val_scaled, y_val_scaled, args.seq_len, args.pred_len, args.test_step),
+        batch_size=args.batch_size,
+        shuffle=False,
     )
     test_loader = DataLoader(
         WorkloadDataset(test_scaled, y_test_scaled, args.seq_len, args.pred_len, args.test_step),
@@ -172,6 +186,7 @@ def main(args):
     scheduler = ExponentialLR(optimizer, gamma=args.decay_rate)
 
     best_loss = float("inf")
+    best_state = None
     best_mse = None
     best_mae = None
     best_smape = None
@@ -194,9 +209,10 @@ def main(args):
             train_losses.append(loss.item())
 
         scheduler.step()
-        val_loss, val_mse, val_mae, val_smape = evaluate(model, test_loader, criterion, device, y_scaler)
-        if val_loss < best_loss:
-            best_loss = val_loss
+        val_loss, val_mse, val_mae, val_smape = evaluate(model, val_loader, criterion, device, y_scaler)
+        if val_mse < best_loss:
+            best_loss = val_mse
+            best_state = copy.deepcopy(model.state_dict())
             best_mse = val_mse
             best_mae = val_mae
             best_smape = val_smape
@@ -208,7 +224,7 @@ def main(args):
             epochs_no_improve += 1
 
         print(
-            "epoch {}, train loss: {}, test loss: {}, mse: {}, mae: {}, smape(%): {}".format(
+            "epoch {}, train loss: {}, val loss: {}, mse: {}, mae: {}, smape(%): {}".format(
                 epoch, float(np.mean(train_losses)), val_loss, val_mse, val_mae, val_smape
             )
         )
@@ -222,11 +238,19 @@ def main(args):
             best_epoch, best_mse, best_mae, best_smape
         )
     )
+    model.load_state_dict(best_state)
+    test_loss, test_mse, test_mae, test_smape = evaluate(model, test_loader, criterion, device, y_scaler)
+    print("test loss: {}, test mse: {}, test mae: {}, test smape(%): {}".format(
+        test_loss, test_mse, test_mae, test_smape
+    ))
+
+    report_test_metrics(Path(__file__).stem, args.seed, args.train_data, args.test_data, test_mse, test_mae, test_smape)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="TFEGRU workload reproduction entry.")
     parser.add_argument("--train_data", type=str, default="../../../data/ECW_08.npy")
+    parser.add_argument("--val_data", type=str, default="")
     parser.add_argument("--test_data", type=str, default="")
     parser.add_argument("--save_dir", type=str, default="saved_model")
     parser.add_argument("--train_ratio", type=float, default=0.8)

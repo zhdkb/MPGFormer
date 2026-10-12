@@ -1,6 +1,7 @@
 import argparse
 import os
 import pickle
+import random
 from pathlib import Path
 
 import numpy as np
@@ -14,8 +15,9 @@ except ImportError:
     tqdm = lambda x: x
 
 from mpgformer import MPGFormer
-from data import MPGFormerWindowDataset, chronological_split
+from data import MPGFormerWindowDataset
 from losses import MPGFormerLoss
+from protocol import split_workload, report_test_metrics
 
 
 def use_dyn_azure_scale(*paths):
@@ -120,23 +122,14 @@ def evaluate(model, loader, criterion, device, static_dim, target_scaler):
     return float(np.mean(losses)), float(np.mean(mses)), float(np.mean(maes)), float(np.mean(smapes))
 
 
-def select_checkpoint_score(metric_name, val_loss, val_mse, val_mae):
-    """Return the scalar used for best-checkpoint selection."""
-
-    if metric_name == "loss":
-        return val_loss
-    if metric_name == "mae":
-        return val_mae
-    return val_mse
-
-
 def main():
     """Train MPGFormer on a workload dataset."""
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default="../../data/ECW_08.npy")
     parser.add_argument("--test_data", type=str, default=None)
-    parser.add_argument("--train_ratio", type=float, default=0.8)
+    parser.add_argument("--val_data", type=str, default=None)
+    parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=80)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-4)
@@ -153,7 +146,6 @@ def main():
     parser.add_argument("--num_prototypes", type=int, default=48)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--save_dir", type=str, default="saved_model")
-    parser.add_argument("--select_metric", type=str, default="mse", choices=["mse", "loss", "mae"])
     parser.add_argument("--point_weight", type=float, default=0.9)
     parser.add_argument("--mse_weight", type=float, default=0.6)
     parser.add_argument("--tail_mse_weight", type=float, default=0.5)
@@ -166,54 +158,54 @@ def main():
     parser.add_argument("--target_tail_mse_ratio", type=float, default=0.9)
     args = parser.parse_args()
 
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data = load_array(args.data)
     min_window = args.enc_len + args.pred_len
 
-    # MPGFormer windows require a full encoder history plus prediction horizon.
-    if args.test_data:
-        train_raw = data
-        test_raw = load_array(args.test_data)
-        if train_raw.shape[-1] != test_raw.shape[-1]:
-            raise ValueError(
-                f"Train/test feature counts differ: train={train_raw.shape[-1]}, test={test_raw.shape[-1]}"
-            )
-        if train_raw.shape[1] < min_window or test_raw.shape[1] < min_window:
-            raise ValueError(
-                "MPGFormer needs at least enc_len + pred_len time points in both files. "
-                f"Got train_periods={train_raw.shape[1]}, test_periods={test_raw.shape[1]}, "
-                f"required_window={min_window}."
-            )
-    else:
-        periods = data.shape[1]
-        train_len = int(periods * args.train_ratio)
-        test_len = periods - train_len
-        if train_len < min_window or test_len < min_window:
-            lo = min_window / periods
-            hi = 1.0 - lo
-            raise ValueError(
-                "MPGFormer needs at least enc_len + pred_len time points in both train and validation splits. "
-                f"Got periods={periods}, train_len={train_len}, test_len={test_len}, "
-                f"required_window={min_window}. Use --train_ratio between {lo:.3f} and {hi:.3f}, "
-                "or reduce --enc_len/--pred_len, or pass --test_data for a separate evaluation file."
-            )
-        train_raw, test_raw = chronological_split(data, train_ratio=args.train_ratio)
+    train_raw, val_raw, test_raw = split_workload(
+        data, args.data,
+        load_array(args.test_data) if args.test_data else None,
+        load_array(args.val_data) if args.val_data else None,
+    )
+    if min(train_raw.shape[1], val_raw.shape[1], test_raw.shape[1]) < min_window:
+        raise ValueError(f"Each split needs at least {min_window} time points")
 
     if use_dyn_azure_scale(args.data, args.test_data):
         train_raw = train_raw.copy()
+        val_raw = val_raw.copy()
         test_raw = test_raw.copy()
         train_raw[:, :, 0] = train_raw[:, :, 0] / 10.0
+        val_raw[:, :, 0] = val_raw[:, :, 0] / 10.0
         test_raw[:, :, 0] = test_raw[:, :, 0] / 10.0
 
     print(f"train data: {train_raw.shape}")
+    print(f"validation data: {val_raw.shape}")
     print(f"test data: {test_raw.shape}")
 
-    train_raw, test_raw, _, target_scaler = scale_dynamic(train_raw, test_raw, args.input_size)
+    train_raw, test_raw, feature_scaler, target_scaler = scale_dynamic(train_raw, test_raw, args.input_size)
+    val_raw[:, :, :args.input_size] = feature_scaler.transform(
+        val_raw[:, :, :args.input_size].reshape(-1, args.input_size)
+    ).reshape(val_raw.shape[0], val_raw.shape[1], args.input_size)
     static_dim = max(0, data.shape[-1] - args.static_start)
 
     # Dataset objects mask future target values while keeping known future covariates.
     train_ds = MPGFormerWindowDataset(
         train_raw,
+        enc_len=args.enc_len,
+        label_len=args.label_len,
+        pred_len=args.pred_len,
+        input_size=args.input_size,
+        static_start=args.static_start,
+        stride=args.label_len,
+    )
+    val_ds = MPGFormerWindowDataset(
+        val_raw,
         enc_len=args.enc_len,
         label_len=args.label_len,
         pred_len=args.pred_len,
@@ -230,13 +222,13 @@ def main():
         static_start=args.static_start,
         stride=args.label_len,
     )
-    if len(train_ds) == 0 or len(test_ds) == 0:
+    if len(train_ds) == 0 or len(val_ds) == 0 or len(test_ds) == 0:
         raise ValueError(
-            f"No training/evaluation windows were generated. train_windows={len(train_ds)}, "
-            f"test_windows={len(test_ds)}. Check --enc_len, --pred_len, --train_ratio, and --stride."
+            f"No windows were generated: train={len(train_ds)}, val={len(val_ds)}, test={len(test_ds)}"
         )
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, drop_last=False)
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
 
     # Model hyperparameters mirror the other baselines where possible.
@@ -299,13 +291,11 @@ def main():
 
         train_loss = float(np.mean(train_losses))
         val_loss, val_mse, val_mae, val_smape = evaluate(
-            model, test_loader, criterion, device, static_dim, target_scaler
+            model, val_loader, criterion, device, static_dim, target_scaler
         )
 
-        # Select checkpoints by the requested metric. MSE is the default because
-        # MPGFormer's composite loss intentionally includes MAE, quantile, peak,
-        # and contrastive terms that are not always aligned with raw MSE.
-        select_score = select_checkpoint_score(args.select_metric, val_loss, val_mse, val_mae)
+        # Validation MSE alone selects the checkpoint.
+        select_score = val_mse
         if select_score < best_score:
             best_score = select_score
             best_loss = val_loss
@@ -324,10 +314,18 @@ def main():
         )
 
     print(
-        f"best_epoch={best_epoch:03d}, select_metric={args.select_metric}, best_score={best_score:.16f}, "
+        f"best_epoch={best_epoch:03d}, select_metric=mse, best_score={best_score:.16f}, "
         f"best_loss={best_loss:.16f}, best_mse={best_mse:.16f}, best_mae={best_mae:.16f}, "
         f"best_smape(%)={best_smape:.16f}"
     )
+    model.load_state_dict(torch.load(save_dir / "MPGFormer_best.pt", map_location=device))
+    test_loss, test_mse, test_mae, test_smape = evaluate(
+        model, test_loader, criterion, device, static_dim, target_scaler
+    )
+    print(f"test_loss={test_loss:.16f}, test_mse={test_mse:.16f}, "
+          f"test_mae={test_mae:.16f}, test_smape(%)={test_smape:.16f}")
+
+    report_test_metrics(Path(__file__).stem, args.seed, args.data, args.test_data, test_mse, test_mae, test_smape)
 
 
 if __name__ == "__main__":

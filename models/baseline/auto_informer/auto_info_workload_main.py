@@ -1,10 +1,12 @@
 import argparse
+import copy
 import os
 import pickle
 import random
 from pathlib import Path
 
 import numpy as np
+from protocol import split_workload, report_test_metrics
 import torch
 import torch.nn as nn
 from sklearn import preprocessing
@@ -110,15 +112,15 @@ def main(args):
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
     os.makedirs(args.save_dir, exist_ok=True)
 
-    X = load_workload(args.train_data)
-    if args.test_data:
-        Xtr = X
-        Xte = load_workload(args.test_data)
-    else:
-        Xtr, Xte = split_by_time(X)
+    Xtr, Xva, Xte = split_workload(
+        load_workload(args.train_data), args.train_data,
+        load_workload(args.test_data) if args.test_data else None,
+        load_workload(args.val_data) if args.val_data else None,
+    )
 
     if use_dyn_azure_scale(args.train_data, args.test_data):
         Xtr[:, :, 0] = Xtr[:, :, 0] / 10.0
+        Xva[:, :, 0] = Xva[:, :, 0] / 10.0
         Xte[:, :, 0] = Xte[:, :, 0] / 10.0
 
     xscaler = preprocessing.MinMaxScaler()
@@ -128,12 +130,19 @@ def main(args):
     num_ts, num_periods, num_features = Xtr.shape
     Xtr = xscaler.fit_transform(Xtr.reshape(-1, num_features)).reshape(num_ts, num_periods, num_features)
     num_ts_te, num_periods_te, _ = Xte.shape
+    num_ts_va, num_periods_va, _ = Xva.shape
+    Xva = xscaler.transform(Xva.reshape(-1, num_features)).reshape(num_ts_va, num_periods_va, num_features)
     Xte = xscaler.transform(Xte.reshape(-1, num_features)).reshape(num_ts_te, num_periods_te, num_features)
 
     train_loader = DataLoader(
         WorkloadDataset(Xtr, args.seq_len, args.label_len, args.pred_len, args.step),
         batch_size=args.batch_size,
         shuffle=True,
+    )
+    val_loader = DataLoader(
+        WorkloadDataset(Xva, args.seq_len, args.label_len, args.pred_len, args.test_step),
+        batch_size=args.batch_size,
+        shuffle=False,
     )
     test_loader = DataLoader(
         WorkloadDataset(Xte, args.seq_len, args.label_len, args.pred_len, args.test_step),
@@ -148,7 +157,40 @@ def main(args):
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
     criterion = nn.MSELoss().to(device)
 
+    def evaluate(loader):
+        model.eval()
+        test_losses = []
+        test_mses = []
+        test_maes = []
+        test_smapes = []
+        with torch.no_grad():
+            for batch_x, batch_y, batch_x_mark, batch_y_mark in loader:
+                batch_x = batch_x.float().to(device)
+                batch_y = batch_y.float().to(device)
+                batch_x_mark = batch_x_mark.float().to(device)
+                batch_y_mark = batch_y_mark.float().to(device)
+
+                dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
+                dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
+
+                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, None)
+                outputs = outputs[:, -args.pred_len:, -1]
+                target = batch_y[:, -args.pred_len:, -1]
+                loss = criterion(outputs, target)
+
+                test_losses.append(loss.item())
+                test_mses.append(get_mse(target.cpu(), outputs.cpu(), yscaler))
+                test_maes.append(get_mae(target.cpu(), outputs.cpu(), yscaler))
+                test_smapes.append(get_smape(target.cpu(), outputs.cpu(), yscaler))
+
+        epoch_loss = float(np.mean(test_losses))
+        epoch_mse = float(np.mean(test_mses))
+        epoch_mae = float(np.mean(test_maes))
+        epoch_smape = float(np.mean(test_smapes))
+        return epoch_loss, epoch_mse, epoch_mae, epoch_smape
+
     best_loss = float("inf")
+    best_state = None
     best_mse = None
     best_mae = None
     best_smape = None
@@ -176,37 +218,10 @@ def main(args):
             optimizer.step()
             train_losses.append(loss.item())
 
-        model.eval()
-        test_losses = []
-        test_mses = []
-        test_maes = []
-        test_smapes = []
-        with torch.no_grad():
-            for batch_x, batch_y, batch_x_mark, batch_y_mark in test_loader:
-                batch_x = batch_x.float().to(device)
-                batch_y = batch_y.float().to(device)
-                batch_x_mark = batch_x_mark.float().to(device)
-                batch_y_mark = batch_y_mark.float().to(device)
-
-                dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
-                dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
-
-                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, None)
-                outputs = outputs[:, -args.pred_len:, -1]
-                target = batch_y[:, -args.pred_len:, -1]
-                loss = criterion(outputs, target)
-
-                test_losses.append(loss.item())
-                test_mses.append(get_mse(target.cpu(), outputs.cpu(), yscaler))
-                test_maes.append(get_mae(target.cpu(), outputs.cpu(), yscaler))
-                test_smapes.append(get_smape(target.cpu(), outputs.cpu(), yscaler))
-
-        epoch_loss = float(np.mean(test_losses))
-        epoch_mse = float(np.mean(test_mses))
-        epoch_mae = float(np.mean(test_maes))
-        epoch_smape = float(np.mean(test_smapes))
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
+        epoch_loss, epoch_mse, epoch_mae, epoch_smape = evaluate(val_loader)
+        if epoch_mse < best_loss:
+            best_loss = epoch_mse
+            best_state = copy.deepcopy(model.state_dict())
             best_mse = epoch_mse
             best_mae = epoch_mae
             best_smape = epoch_smape
@@ -215,17 +230,26 @@ def main(args):
             pickle.dump([xscaler, yscaler], open(os.path.join(args.save_dir, "autoformer_workload_scaler.pkl"), "wb"))
 
         print(
-            "epoch {}, train loss: {}, test loss: {}, mse: {}, mae: {}, smape(%): {}".format(
+            "epoch {}, train loss: {}, val loss: {}, mse: {}, mae: {}, smape(%): {}".format(
                 epoch, float(np.mean(train_losses)), epoch_loss, epoch_mse, epoch_mae, epoch_smape
             )
         )
 
     print("best epoch: {}, best mse: {}, best mae: {}, best smape(%): {}".format(best_epoch, best_mse, best_mae, best_smape))
 
+    model.load_state_dict(best_state)
+    test_loss, test_mse, test_mae, test_smape = evaluate(test_loader)
+    print("test loss: {}, test mse: {}, test mae: {}, test smape(%): {}".format(
+        test_loss, test_mse, test_mae, test_smape
+    ))
+
+    report_test_metrics(Path(__file__).stem, args.seed, args.train_data, args.test_data, test_mse, test_mae, test_smape)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Autoformer workload reproduction entry for ECW and Azure data.")
     parser.add_argument("--train_data", type=str, default="../../../data/ECW_08.npy")
+    parser.add_argument("--val_data", type=str, default="")
     parser.add_argument("--test_data", type=str, default="")
     parser.add_argument("--save_dir", type=str, default="saved_model")
     parser.add_argument("--seq_len", type=int, default=48)
