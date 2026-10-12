@@ -89,7 +89,7 @@ def read_cpu_files_as_buckets(paths, num_buckets, bucket_agg):
                 index=timestamps,
                 dtype=float,
             )
-        series = series.interpolate(limit_direction="both").ffill().bfill()
+        series = series.ffill().fillna(0.0)
 
         for timestamp, avg_cpu in series.items():
             day, hour, minute = timestamp_features(int(timestamp))
@@ -145,10 +145,10 @@ def build_segments(series, seq_len, stride, max_segments_per_vm):
             if previous is None or timestamp - previous == 300:
                 current.append(by_ts[timestamp])
             else:
-                segments.extend(slice_run(current, seq_len, stride, max_segments_per_vm))
+                segments.extend((vm_id, segment) for segment in slice_run(current, seq_len, stride, max_segments_per_vm))
                 current = [by_ts[timestamp]]
             previous = timestamp
-        segments.extend(slice_run(current, seq_len, stride, max_segments_per_vm))
+        segments.extend((vm_id, segment) for segment in slice_run(current, seq_len, stride, max_segments_per_vm))
 
     return segments
 
@@ -164,6 +164,31 @@ def slice_run(rows, seq_len, stride, max_segments_per_vm):
         if max_segments_per_vm and len(picked) >= max_segments_per_vm:
             break
     return picked
+
+
+def split_segments_by_source(segments, train_ratio, max_segments, rng=None):
+    """Keep every segment from one VM or bucket in one partition."""
+    if not 0 < train_ratio < 1:
+        raise ValueError("Training ratio must be between zero and one")
+    by_source = defaultdict(list)
+    for source_id, segment in segments:
+        by_source[source_id].append(segment)
+    source_ids = list(by_source)
+    (rng or random).shuffle(source_ids)
+    if max_segments:
+        selected, count = [], 0
+        for source_id in source_ids:
+            selected.append(source_id)
+            count += len(by_source[source_id])
+            if count >= max_segments and len(selected) >= 2:
+                break
+        source_ids = selected
+    if len(source_ids) < 2:
+        raise ValueError("Need at least two VM/bucket sources for a train/test split")
+    split = min(len(source_ids) - 1, max(1, int(len(source_ids) * train_ratio)))
+    train = np.stack([segment for source_id in source_ids[:split] for segment in by_source[source_id]]).astype(np.float32)
+    test = np.stack([segment for source_id in source_ids[split:] for segment in by_source[source_id]]).astype(np.float32)
+    return train, test
 
 
 def main(args):
@@ -215,13 +240,9 @@ def main(args):
             )
         )
 
-    random.shuffle(segments)
-    if args.max_segments:
-        segments = segments[:args.max_segments]
-
-    split = int(len(segments) * args.train_ratio)
-    train = np.stack(segments[:split]).astype(np.float32)
-    test = np.stack(segments[split:]).astype(np.float32)
+    # Split by VM/bucket identity so multiple segments of one source cannot
+    # appear in both training and held-out test files.
+    train, test = split_segments_by_source(segments, args.train_ratio, args.max_segments)
 
     train_path = os.path.join(args.output_dir, args.train_name)
     test_path = os.path.join(args.output_dir, args.test_name)

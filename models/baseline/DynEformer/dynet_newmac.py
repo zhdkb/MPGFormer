@@ -32,7 +32,7 @@ def batch_generator_padding(X, Y, num_obs_to_train, seq_len, step):
     Y_all = []
 
     for i in range(num_ts):
-        for j in range(num_obs_to_train, num_periods - seq_len, step):
+        for j in range(num_obs_to_train, num_periods - seq_len + 1, step):
             X_all.append(X[i, j-num_obs_to_train:j+seq_len, :])
             Y_all.append(Y[i, j:j+seq_len])
 

@@ -100,15 +100,17 @@ PYTHONPATH=../.. python train_mpgformer.py \
   --static_start 6
 ```
 
-Commands for MPGFormer and all baselines are summarized in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md).
+Commands for MPGFormer and the included baselines are summarized in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md).
 
 ## Baselines
 
-The [models/baseline](models/baseline) directory contains adapted implementations for Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, and MICN. These implementations use the same processed data format and evaluation scale whenever possible.
+The [models/baseline](models/baseline) directory contains adapted implementations for Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, and MICN. The paper's PatchTST comparison and six of its eight additional appendix baselines do not have implementations in this repository. These implementations use the same processed data format and evaluation scale whenever possible.
 
 ## Evaluation protocol
 
 Training data alone fits the scalers. Validation MSE selects the checkpoint; the held-out test set is evaluated only once after training. Use 11 matched seeds and report the mean and sample SD of their final test metrics. See [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md) for dataset splits and commands.
+
+Future decoder inputs contain calendar features only; future measured resource covariates are hidden. Evaluation includes the final complete forecasting window and weights the final partial batch by its sample count. Previously generated datasets and metrics should be regenerated with the current preparation and evaluation code.
 
 ## License
 

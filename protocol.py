@@ -37,14 +37,17 @@ def split_workload(train, train_path, test=None, validation=None, split_seed=0):
     return tr.copy(), va.copy(), te.copy()
 
 
-def pool_training_partition(data, train_path, split_seed=0):
+def pool_training_partition(data, train_path, split_seed=0, source_train_ratio=None):
     """Return the training observations used to fit a DynEformer global pool."""
     data = np.asarray(data)
     if data.ndim != 3:
         raise ValueError("Expected a [series, time, features] array")
     name = Path(train_path).name.lower()
     if "ecw" in name:
-        return data[:, :int(0.64 * data.shape[1])].copy()
+        ratio = 0.64 if source_train_ratio is None else source_train_ratio
+        if not 0 < ratio < 1:
+            raise ValueError("Source training ratio must be between zero and one")
+        return data[:, :int(ratio * data.shape[1])].copy()
     if "materna" in name:
         return data.copy()
     ids = np.random.default_rng(split_seed).permutation(data.shape[0])
@@ -56,6 +59,8 @@ def pool_training_partition(data, train_path, split_seed=0):
 
 def report_test_metrics(model, seed, train_path, test_path, mse, mae, smape):
     """Emit one machine-readable record after the held-out test evaluation."""
+    if not np.isfinite([mse, mae, smape]).all():
+        raise ValueError("Test metrics must be finite")
     dataset = Path(test_path).stem if test_path else "ECW"
     print("TEST_METRICS " + json.dumps({
         "model": model,
@@ -65,3 +70,12 @@ def report_test_metrics(model, seed, train_path, test_path, mse, mae, smape):
         "mae": float(mae),
         "smape": float(smape),
     }, sort_keys=True))
+
+
+def mean_by_batch(values, batch_sizes):
+    """Average per-batch means over samples, including the final partial batch."""
+    if not values or len(values) != len(batch_sizes):
+        raise ValueError("Expected one value and a positive size for every batch")
+    if any(size <= 0 for size in batch_sizes):
+        raise ValueError("Batch sizes must be positive")
+    return float(np.average(values, weights=batch_sizes))

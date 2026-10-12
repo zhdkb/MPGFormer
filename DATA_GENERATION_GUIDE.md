@@ -63,6 +63,8 @@ git clone https://github.com/Azure/AzurePublicDataset.git external/AzurePublicDa
 
 The preparation script reads the official link file from `external/AzurePublicDataset/` and downloads VM CPU `.csv.gz` files to `external/azure_vm_cpu_readings/`.
 
+The script splits by VM or bucket identity before saving the fixed train/test arrays, so multiple segments from one source stay in one partition. Missing measurements are filled from preceding observations only.
+
 Automatic download and preprocessing:
 
 ```bash

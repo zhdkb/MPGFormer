@@ -11,8 +11,8 @@ class MPGFormerWindowDataset(Dataset):
     """Create rolling forecasting windows from a 3-D workload array.
 
     Input arrays are expected to follow ``[num_series, num_periods, num_features]``.
-    For every generated sample, the future target channel in the decoder input
-    is set to zero.
+    For every generated sample, future target and unavailable measured
+    covariates are hidden. Calendar fields at columns 1 through 3 remain known.
     """
 
     def __init__(
@@ -50,8 +50,10 @@ class MPGFormerWindowDataset(Dataset):
                 x = block[:, : self.input_size]
                 y = block[-pred_len:, target_col].copy()
 
-                # Hide future target values while keeping known exogenous features.
+                # Only calendar features are known at forecast issuance.
                 x[enc_len:, target_col] = 0.0
+                if self.input_size > 4:
+                    x[enc_len:, 4:] = 0.0
                 self.samples.append((x, y, series_id))
 
                 if series_static is not None:

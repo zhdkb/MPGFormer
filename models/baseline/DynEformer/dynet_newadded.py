@@ -32,7 +32,7 @@ def batch_generator_padding(X, Y, num_obs_to_train, seq_len, step):
     Y_all = []
 
     for i in range(num_ts):
-        for j in range(num_obs_to_train, num_periods - seq_len, step):
+        for j in range(num_obs_to_train, num_periods - seq_len + 1, step):
             X_all.append(X[i, j-num_obs_to_train:j+seq_len, :])
             Y_all.append(Y[i, j:j+seq_len])
 
@@ -65,32 +65,25 @@ def reference(X, y, args):
     X_test_all, Y_test_all = batch_generator_padding(Xte, yte, num_obs_to_train, pre_seq_len, args.step)
 
     with torch.no_grad():
-        test_epoch_mse = []
-        test_epoch_mae = []
-        test_epoch_smape = []
-
         Xtest, ytest = X_test_all, Y_test_all
-
-        Xtest_tensor = torch.from_numpy(Xtest.astype(float)).float().to(device)[:, :, :4]
-        Test_static_context = torch.from_numpy(Xtest.astype(float)).float().to(device)[:, 0, 4:].squeeze(1)
-        ytest_tensor = torch.from_numpy(ytest.astype(float)).float().to(device)
-
-        yPred_test = model(Xtest_tensor, timeFeature, Test_static_context)
-
-        yPred_test = yPred_test.cpu().numpy()
+        predictions = []
+        for start in range(0, len(Xtest), args.batch_size):
+            batch = torch.from_numpy(Xtest[start:start + args.batch_size].astype(np.float32)).to(device)
+            predictions.append(model(batch[:, :, :4], timeFeature, batch[:, 0, 4:]).cpu().numpy())
+        yPred_test = np.concatenate(predictions, axis=0)
 
         if yscaler is not None:
             yPred_test = yscaler.inverse_transform(yPred_test.reshape(-1, 1))
 
-        test_epoch_mse.append(((ytest.reshape(-1) - yPred_test.reshape(-1)) ** 2).mean())
-        test_epoch_mae.append(np.abs(ytest.reshape(-1) - yPred_test.reshape(-1)).mean())
-        test_epoch_smape.append(smape_percent(ytest.reshape(-1), yPred_test.reshape(-1)))
+        test_mse = ((ytest.reshape(-1) - yPred_test.reshape(-1)) ** 2).mean()
+        test_mae = np.abs(ytest.reshape(-1) - yPred_test.reshape(-1)).mean()
+        test_smape = smape_percent(ytest.reshape(-1), yPred_test.reshape(-1))
 
-        print('The Mean Squared Error of forecasts is {} (raw)'.format(np.average(test_epoch_mse)))
-        print('The Mean Absolute Error of forecasts is {} (raw)'.format(np.average(test_epoch_mae)))
-        print('The SMAPE of forecasts is {}% (raw)'.format(np.average(test_epoch_smape)))
+        print('The Mean Squared Error of forecasts is {} (raw)'.format(test_mse))
+        print('The Mean Absolute Error of forecasts is {} (raw)'.format(test_mae))
+        print('The SMAPE of forecasts is {}% (raw)'.format(test_smape))
         report_test_metrics('dyneformer_main', args.seed, 'ECW_08.npy', 'ECW_newapp.pkl',
-                            np.average(test_epoch_mse), np.average(test_epoch_mae), np.average(test_epoch_smape))
+                            test_mse, test_mae, test_smape)
 
 
 if __name__ == "__main__":
@@ -101,6 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("--out_seq_len", "-ol", type=int, default=24)  # prediction length
     parser.add_argument("--enc_seq_len", "-not", type=int, default=24 * 2)  # encoder history length
     parser.add_argument("--seed", type=int, default=2)
+    parser.add_argument("--batch_size", type=int, default=64)
 
     parser.add_argument("--run_test", "-rt", action="store_true", default=True)
 

@@ -2,7 +2,8 @@ import unittest
 
 import numpy as np
 
-from protocol import pool_training_partition, split_workload
+from protocol import mean_by_batch, pool_training_partition, report_test_metrics, split_workload
+from models.MPGFormer.data import MPGFormerWindowDataset
 
 
 class SplitProtocolTest(unittest.TestCase):
@@ -47,6 +48,10 @@ class SplitProtocolTest(unittest.TestCase):
         np.testing.assert_array_equal(
             pool_training_partition(self.data, "ECW_08.npy"), ecw_train
         )
+        np.testing.assert_array_equal(
+            pool_training_partition(self.data, "ECW_08.npy", source_train_ratio=0.8),
+            self.data[:, :80],
+        )
         azure_train = split_workload(
             self.data, "tr_vm_official.npy", self.data + 100000
         )[0]
@@ -56,6 +61,23 @@ class SplitProtocolTest(unittest.TestCase):
         np.testing.assert_array_equal(
             pool_training_partition(self.data, "tr_materna_mt1.npy"), self.data
         )
+
+    def test_partial_batch_does_not_get_full_batch_weight(self):
+        self.assertAlmostEqual(mean_by_batch([1.0, 9.0], [3, 1]), 3.0)
+        with self.assertRaises(ValueError):
+            mean_by_batch([1.0, 2.0], [2])
+        with self.assertRaises(ValueError):
+            report_test_metrics("model", 0, "train.npy", "test.npy", np.nan, 0.1, 10.0)
+
+    def test_future_measured_covariates_are_hidden(self):
+        data = np.arange(72 * 6, dtype=np.float32).reshape(1, 72, 6)
+        window = MPGFormerWindowDataset(data, input_size=6, static_start=6, stride=12)
+        x, _, y, _ = window[0]
+        np.testing.assert_array_equal(y.numpy(), data[0, 48:, 0])
+        np.testing.assert_array_equal(x[:48].numpy(), data[0, :48])
+        np.testing.assert_array_equal(x[48:, 1:4].numpy(), data[0, 48:, 1:4])
+        self.assertTrue((x[48:, 0] == 0).all())
+        self.assertTrue((x[48:, 4:] == 0).all())
 
 
 if __name__ == "__main__":

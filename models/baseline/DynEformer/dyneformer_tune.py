@@ -158,6 +158,10 @@ class DynEformer(torch.nn.Module):
         # encoder
 
         new_x = torch.clone(x)
+        # Future measured covariates are unavailable when the forecast is made.
+        # Columns 1:4 are deterministic calendar features and remain visible.
+        if new_x.size(-1) > 4:
+            new_x[:, self.enc_seq_len:, 4:] = 0
         enc_input = new_x[:, :self.enc_seq_len, :]
         dec_input = new_x[:, -self.dec_seq_len-self.out_seq_len:, :]
 
@@ -168,7 +172,7 @@ class DynEformer(torch.nn.Module):
         e = self.encs[0](e)
 
         if time_feature!=None:
-            _, e = self.add_feature_layer(e, time_feature)  # key dim = [batch_size, time_feature_len]
+            key, e = self.add_feature_layer(e, time_feature)  # key dim = [batch_size, time_feature_len]
             for enc in self.encs[1:]:
                 e = enc(e)
                 key, e = self.add_feature_layer(e, time_feature)  # key dim = [batch_size, time_feature_len]

@@ -6,7 +6,7 @@ import random
 from pathlib import Path
 
 import numpy as np
-from protocol import split_workload, report_test_metrics
+from protocol import split_workload, report_test_metrics, mean_by_batch
 import torch
 import torch.nn as nn
 from sklearn import preprocessing
@@ -59,7 +59,7 @@ class WorkloadDataset(Dataset):
         self.x = []
         self.y = []
         for series_id in range(x_scaled.shape[0]):
-            for pos in range(seq_len, x_scaled.shape[1] - pred_len, step):
+            for pos in range(seq_len, x_scaled.shape[1] - pred_len + 1, step):
                 self.x.append(x_scaled[series_id, pos - seq_len:pos, :])
                 self.y.append(y_scaled[series_id, pos:pos + pred_len])
         if not self.x:
@@ -125,6 +125,7 @@ def evaluate(model, loader, criterion, device, y_scaler):
     mses = []
     maes = []
     smapes = []
+    batch_sizes = []
     with torch.no_grad():
         for x, y in loader:
             x = x.to(device)
@@ -135,12 +136,13 @@ def evaluate(model, loader, criterion, device, y_scaler):
 
             true_raw = inverse_scale(y.cpu().numpy(), y_scaler)
             pred_raw = inverse_scale(pred.cpu().numpy(), y_scaler)
+            batch_sizes.append(len(y))
             losses.append(loss.item())
             mses.append(np.mean((pred_raw.reshape(-1) - true_raw.reshape(-1)) ** 2))
             maes.append(np.mean(np.abs(pred_raw.reshape(-1) - true_raw.reshape(-1))))
             smapes.append(smape_percent(true_raw, pred_raw))
 
-    return float(np.mean(losses)), float(np.mean(mses)), float(np.mean(maes)), float(np.mean(smapes))
+    return float(mean_by_batch(losses, batch_sizes)), float(mean_by_batch(mses, batch_sizes)), float(mean_by_batch(maes, batch_sizes)), float(mean_by_batch(smapes, batch_sizes))
 
 
 def main(args):

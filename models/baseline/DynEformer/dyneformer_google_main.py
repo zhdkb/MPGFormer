@@ -3,9 +3,10 @@ import copy
 import os
 import pickle
 import random
+from pathlib import Path
 
 import numpy as np
-from protocol import split_workload, report_test_metrics
+from protocol import split_workload, report_test_metrics, mean_by_batch
 import torch
 from sklearn import preprocessing
 from torch import nn
@@ -27,7 +28,7 @@ class GoogleDataset(Dataset):
         samples = []
 
         for i in range(num_ts):
-            for j in range(seq_len, num_periods, step):
+            for j in range(seq_len, num_periods + 1, step):
                 samples.append(X[i, j - seq_len:j, :])
 
         if not samples:
@@ -163,6 +164,7 @@ def train(args):
         test_mses = []
         test_maes = []
         test_smapes = []
+        batch_sizes = []
         with torch.no_grad():
             for x, y in loader:
                 x = x.float().to(device)
@@ -171,15 +173,16 @@ def train(args):
                 y_pred = model(x[:, :, :num_features], global_pool, None)
                 loss = criterion(y_pred, y)
 
+                batch_sizes.append(len(y))
                 test_losses.append(loss.item())
                 test_mses.append(get_mse(y.cpu(), y_pred.cpu(), yscaler))
                 test_maes.append(get_mae(y.cpu(), y_pred.cpu(), yscaler))
                 test_smapes.append(get_smape(y.cpu(), y_pred.cpu(), yscaler))
 
-        epoch_loss = float(np.mean(test_losses))
-        epoch_mse = float(np.mean(test_mses))
-        epoch_mae = float(np.mean(test_maes))
-        epoch_smape = float(np.mean(test_smapes))
+        epoch_loss = float(mean_by_batch(test_losses, batch_sizes))
+        epoch_mse = float(mean_by_batch(test_mses, batch_sizes))
+        epoch_mae = float(mean_by_batch(test_maes, batch_sizes))
+        epoch_smape = float(mean_by_batch(test_smapes, batch_sizes))
         return epoch_loss, epoch_mse, epoch_mae, epoch_smape
 
     best_loss = float("inf")

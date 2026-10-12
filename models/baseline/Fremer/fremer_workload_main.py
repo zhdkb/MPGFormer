@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
-from protocol import split_workload, report_test_metrics
+from protocol import split_workload, report_test_metrics, mean_by_batch
 import torch
 import torch.nn as nn
 from sklearn import preprocessing
@@ -80,7 +80,7 @@ class WorkloadDataset(Dataset):
         y_future_raw = []
 
         for i in range(X_scaled.shape[0]):
-            for j in range(seq_len, X_scaled.shape[1] - pred_len, step):
+            for j in range(seq_len, X_scaled.shape[1] - pred_len + 1, step):
                 x_hist.append(X_scaled[i, j - seq_len:j, :])
                 y_future_scaled.append(X_scaled[i, j:j + pred_len, 0])
                 y_future_raw.append(y_raw[i, j:j + pred_len])
@@ -199,6 +199,7 @@ def main(args):
         test_mses = []
         test_maes = []
         test_smapes = []
+        batch_sizes = []
         with torch.no_grad():
             for x_hist, y_future_scaled, y_future_raw in loader:
                 x_hist = x_hist.float().to(device)
@@ -207,6 +208,7 @@ def main(args):
                 pred = model(x_hist)[:, :, 0]
                 loss = criterion(pred, y_future_scaled)
 
+                batch_sizes.append(len(y_future_scaled))
                 test_losses.append(loss.item())
                 pred_raw = inverse_scale(pred.cpu().numpy(), yscaler)
                 true_raw = y_future_raw.numpy()
@@ -214,10 +216,10 @@ def main(args):
                 test_maes.append(np.mean(np.abs(pred_raw.reshape(-1) - true_raw.reshape(-1))))
                 test_smapes.append(get_smape(true_raw, pred_raw))
 
-        epoch_loss = float(np.mean(test_losses))
-        epoch_mse = float(np.mean(test_mses))
-        epoch_mae = float(np.mean(test_maes))
-        epoch_smape = float(np.mean(test_smapes))
+        epoch_loss = float(mean_by_batch(test_losses, batch_sizes))
+        epoch_mse = float(mean_by_batch(test_mses, batch_sizes))
+        epoch_mae = float(mean_by_batch(test_maes, batch_sizes))
+        epoch_smape = float(mean_by_batch(test_smapes, batch_sizes))
         return epoch_loss, epoch_mse, epoch_mae, epoch_smape
 
     best_loss = float("inf")

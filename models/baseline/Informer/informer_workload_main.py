@@ -6,7 +6,7 @@ import random
 from pathlib import Path
 
 import numpy as np
-from protocol import split_workload, report_test_metrics
+from protocol import split_workload, report_test_metrics, mean_by_batch
 import torch
 import torch.nn as nn
 from sklearn import preprocessing
@@ -78,7 +78,7 @@ class WorkloadDataset(Dataset):
         y_mark_all = []
 
         for i in range(X.shape[0]):
-            for j in range(seq_len, X.shape[1] - pred_len, step):
+            for j in range(seq_len, X.shape[1] - pred_len + 1, step):
                 x_all.append(X[i, j - seq_len:j, 0])
                 y_all.append(X[i, j - label_len:j + pred_len, 0])
                 x_mark_all.append(X[i, j - seq_len:j, 1:4])
@@ -185,6 +185,7 @@ def main(args):
         test_mses = []
         test_maes = []
         test_smapes = []
+        batch_sizes = []
         with torch.no_grad():
             for batch_x, batch_y, batch_x_mark, batch_y_mark in loader:
                 batch_x = batch_x.float().to(device)
@@ -200,15 +201,16 @@ def main(args):
                 target = batch_y[:, -args.pred_len:, -1]
                 loss = criterion(outputs, target)
 
+                batch_sizes.append(len(target))
                 test_losses.append(loss.item())
                 test_mses.append(get_mse(target.cpu(), outputs.cpu(), yscaler))
                 test_maes.append(get_mae(target.cpu(), outputs.cpu(), yscaler))
                 test_smapes.append(get_smape(target.cpu(), outputs.cpu(), yscaler))
 
-        epoch_loss = float(np.mean(test_losses))
-        epoch_mse = float(np.mean(test_mses))
-        epoch_mae = float(np.mean(test_maes))
-        epoch_smape = float(np.mean(test_smapes))
+        epoch_loss = float(mean_by_batch(test_losses, batch_sizes))
+        epoch_mse = float(mean_by_batch(test_mses, batch_sizes))
+        epoch_mae = float(mean_by_batch(test_maes, batch_sizes))
+        epoch_smape = float(mean_by_batch(test_smapes, batch_sizes))
         return epoch_loss, epoch_mse, epoch_mae, epoch_smape
 
     best_loss = float("inf")

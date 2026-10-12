@@ -1,6 +1,6 @@
-# Reproduce All Models
+# Reproduce Included Models
 
-This file keeps the reproduction commands compact. Use it in two steps:
+This file covers models implemented in this repository. PatchTST and six additional appendix baselines from the paper are not included. Use the commands in two steps:
 
 1. Select one dataset preset.
 2. Run the command block for MPGFormer or a baseline.
@@ -149,6 +149,7 @@ PYTHONPATH="$REPO" python train_mpgformer.py \
   --enc_len 48 \
   --label_len 12 \
   --pred_len 24 \
+  --test_step "$TEST_STEP" \
   --seed "$SEED"
 ```
 
@@ -278,9 +279,9 @@ PYTHONPATH="$REPO" python micn_workload_main.py \
 
 DynEformer requires a Global Pool before training. The ECW commands use a fixed cluster count; the Azure, Google, and Materna commands search for `K` on training data before building a pool.
 
-For ECW, New Infras., and New App, use `K=551`.
+For ECW, New Infras., and New App, use `K=551`. Build a pool for each scenario's source training interval before training that scenario.
 
-### ECW, New Infras., and New App
+### ECW
 
 ```bash
 cd "$REPO/models/baseline/GlobalPooling/vade_pooling"
@@ -288,12 +289,34 @@ PYTHONPATH="$REPO" python global_pooling_main.py \
   --dataX_dir "$REPO/data/ECW_08.npy" \
   --nClusters 551 \
   --series_len 48 \
-  --step 12
+  --step 12 \
+  --source_train_ratio 0.64
 
 cd "$REPO/models/baseline/DynEformer"
 PYTHONPATH="$REPO" python dyneformer_main.py --num_epoches 300 --batch_size 256 --seed "$SEED"
-PYTHONPATH="$REPO" python dynet_newmac.py --batch_size 32 --seed "$SEED"
-PYTHONPATH="$REPO" python dynet_newadded.py --seed "$SEED"
+```
+
+### New Infras. and New App
+
+Build the pool from the first 80% of the ECW source, then train a separate model for each held-out scenario. Run this block once with the New Infras. preset and once with the New App preset.
+
+```bash
+cd "$REPO/models/baseline/GlobalPooling/vade_pooling"
+PYTHONPATH="$REPO" python global_pooling_main.py \
+  --dataX_dir "$REPO/data/ECW_08.npy" \
+  --nClusters 551 \
+  --series_len 48 \
+  --step 12 \
+  --source_train_ratio 0.80
+
+cd "$REPO/models/baseline/DynEformer"
+PYTHONPATH="$REPO" python dyneformer_main.py \
+  --data "$TRAIN" \
+  --test_data "$TEST" \
+  --num_epoches "$EPOCHS" \
+  --batch_size "$BATCH" \
+  --test_step "$TEST_STEP" \
+  --seed "$SEED"
 ```
 
 ### Azure, Google v1, and Materna
@@ -362,7 +385,10 @@ Run only the command that matches the selected dataset.
 - Training entries fit scalers on their training partitions. Validation MSE selects the checkpoint, followed by one test evaluation. DynEformer's global pool is fitted on the training partition.
 - ECW uses chronological 64/16/20 train/validation/test; New Infras. and New App use an 80/20 source-trace train/validation split plus a separate test trace. Azure and Google reserve 20% of training series IDs (fixed split seed 0). Materna uses its separate 70/10/20 train/validation/test files.
 - Run each model and dataset with matched `--seed` values 0 through 10. Report the mean and sample SD of the final test metrics.
-- Each model training or evaluation command emits a `TEST_METRICS` JSON line. Combine the logs for models being compared, then run `python "$REPO/scripts/summarize_seed_runs.py" all_runs.log --baseline informer_workload_main` (substitute the desired baseline name). The script checks the 11 seed IDs and reports paired 95% t intervals.
+- Each model training or evaluation command emits a `TEST_METRICS` JSON line. Combine the logs for models being compared, then run `python "$REPO/scripts/summarize_seed_runs.py" all_runs.log --model train_mpgformer --baseline informer_workload_main` (substitute the prespecified baseline name). The script checks the 11 seed IDs and reports paired 95% t intervals, raw p-values, and Holm-adjusted p-values across the comparisons printed together.
+- Select the comparison baseline before inspecting held-out test results. Paired intervals across training seeds describe run-to-run variation on the fixed test set; they do not measure uncertainty over new traces. If testing several datasets or model pairs, account for multiple comparisons when interpreting p-values.
 - All scripts report MSE, MAE, and SMAPE on the inverse-scaled workload target.
+- Only calendar fields (columns 1 through 3) are treated as known future covariates. Measured resource fields are hidden at forecast time.
+- Regenerate processed data and all paper metrics after changes to data preparation or evaluation code. The repository does not contain the raw eleven-seed results required to verify the paper's tables or paired intervals.
 - Azure target scaling follows the same convention across MPGFormer and baselines.
 - Use smaller `EPOCHS` for quick debugging, but keep the listed values for paper reproduction.

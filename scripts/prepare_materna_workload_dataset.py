@@ -77,7 +77,8 @@ def build_vm_series(path, grid, max_missing_rate):
     if missing_rate > max_missing_rate:
         return None, missing_rate
 
-    frame = frame.interpolate(limit_direction="both").ffill().bfill()
+    # Fill from past observations only, including across chronological splits.
+    frame = frame.ffill().fillna(0.0)
     if frame[RAW_COLUMNS[1:]].isna().any().any():
         return None, missing_rate
 

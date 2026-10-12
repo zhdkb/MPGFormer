@@ -1,6 +1,7 @@
 import numpy as np
 import copy
-from protocol import split_workload, report_test_metrics
+import os
+from protocol import split_workload, report_test_metrics, mean_by_batch
 import pandas as pd
 import random
 from torch import nn
@@ -15,7 +16,6 @@ import time
 from torch.utils.data import DataLoader, Dataset
 
 # from models.baseline.data_process_utils import *
-from models.baseline.global_utils import train_test_split
 from models.baseline.GlobalPooling.vade_pooling.GlobalPool import GlobalPool
 from models.baseline.pickle_compat import register_globalpool_aliases
 
@@ -58,7 +58,7 @@ def get_smape(y_true, y_pred, scaler=None):
     denominator = np.abs(y_true) + np.abs(y_pred)
     return 100.0 * np.mean(2.0 * np.abs(y_true - y_pred) / np.maximum(denominator, 1e-8))
 class PPIO_Dataset(Dataset):
-    def __init__(self, X, enc_len=48, label_len=12, pred_len=24, num_static=12):
+    def __init__(self, X, enc_len=48, label_len=12, pred_len=24, num_static=12, step=12):
         self.pred_len = pred_len
         num_ts, num_periods, num_features = X.shape
         sq_len = enc_len + pred_len
@@ -66,7 +66,7 @@ class PPIO_Dataset(Dataset):
         X.astype(float)
 
         for i in range(num_ts):
-            for j in range(sq_len, num_periods, 12):
+            for j in range(sq_len, num_periods + 1, step):
                 X_train_all.append(X[i, j - sq_len:j, :])
 
         self.X = np.stack(X_train_all).reshape(-1, sq_len, num_features)
@@ -82,6 +82,7 @@ def train(X, y, args):
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    os.makedirs('saved_model', exist_ok=True)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     input_size = 4
     cn = 551
@@ -101,7 +102,11 @@ def train(X, y, args):
     model = model.to(device)
 
     optimizer = Adam(model.parameters(), lr=args.lr)
-    Xtr, Xva, Xte = split_workload(X, "ECW_08.npy")
+    test_data = None
+    if args.test_data:
+        with open(args.test_data, 'rb') as stream:
+            test_data = pickle.load(stream) if args.test_data.endswith('.pkl') else np.load(stream, allow_pickle=True)
+    Xtr, Xva, Xte = split_workload(X, args.data, test_data)
     ytr = Xtr[:, :, 0]
     xscaler = preprocessing.MinMaxScaler()
     yscaler = preprocessing.MinMaxScaler()
@@ -112,9 +117,9 @@ def train(X, y, args):
     num_ts, num_periods, num_features = Xte.shape
     Xte = xscaler.transform(Xte.reshape(-1, num_features)).reshape(num_ts, num_periods, num_features)
     yscaler.fit(ytr.reshape(-1, 1))
-    Xtr_loader = DataLoader(PPIO_Dataset(Xtr), batch_size=args.batch_size)
-    Xva_loader = DataLoader(PPIO_Dataset(Xva), batch_size=args.batch_size)
-    Xte_loader = DataLoader(PPIO_Dataset(Xte), batch_size=args.batch_size)
+    Xtr_loader = DataLoader(PPIO_Dataset(Xtr, step=args.step), batch_size=args.batch_size)
+    Xva_loader = DataLoader(PPIO_Dataset(Xva, step=args.test_step), batch_size=args.batch_size)
+    Xte_loader = DataLoader(PPIO_Dataset(Xte, step=args.test_step), batch_size=args.batch_size)
 
     pickle.dump([xscaler, yscaler], open('saved_model/dyne_data_scaler_tmp.pkl', 'wb'))
 
@@ -124,10 +129,10 @@ def train(X, y, args):
     def evaluate(loader):
         epo_test_losses = []
         epo_mse = []
-        epo_mape = []
         epo_mae = []
         epo_smape = []
         model.eval()
+        batch_sizes = []
         with torch.no_grad():
             for x, y in loader:
                 x_load = x.float().to(device)[:, :, :4]
@@ -138,16 +143,16 @@ def train(X, y, args):
 
                 loss = mse(yPred, y)
 
+                batch_sizes.append(len(y))
                 epo_test_losses.append(loss.item())
                 epo_mse.append(get_mse(yPred.cpu(), y.cpu(), yscaler))
-                epo_mape.append(get_mape(yPred.cpu(), y.cpu(), yscaler))
                 epo_mae.append(get_mae(yPred.cpu(), y.cpu(), yscaler))
                 epo_smape.append(get_smape(yPred.cpu(), y.cpu(), yscaler))
 
-        epoch_loss = float(np.mean(epo_test_losses))
-        epoch_mse = float(np.mean(epo_mse))
-        epoch_mae = float(np.mean(epo_mae))
-        epoch_smape = float(np.mean(epo_smape))
+        epoch_loss = float(mean_by_batch(epo_test_losses, batch_sizes))
+        epoch_mse = float(mean_by_batch(epo_mse, batch_sizes))
+        epoch_mae = float(mean_by_batch(epo_mae, batch_sizes))
+        epoch_smape = float(mean_by_batch(epo_smape, batch_sizes))
         return epoch_loss, epoch_mse, epoch_mae, epoch_smape
 
 
@@ -185,13 +190,17 @@ def train(X, y, args):
     test_metrics = evaluate(Xte_loader)
     print('best epoch: {}, validation mse: {}'.format(best_epoch, min_loss))
     print('test loss: {}, test mse: {}, test mae: {}, test smape(%): {}'.format(*test_metrics))
-    report_test_metrics('dyneformer_main', args.seed, 'ECW_08.npy', None, *test_metrics[1:])
+    report_test_metrics('dyneformer_main', args.seed, args.data, args.test_data, *test_metrics[1:])
     return losses, *test_metrics
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=str, default="../../../data/ECW_08.npy")
+    parser.add_argument("--test_data", type=str, default=None)
+    parser.add_argument("--step", type=int, default=12)
+    parser.add_argument("--test_step", type=int, default=12)
     parser.add_argument("--standard_scaler", "-ss", action="store_true")
     parser.add_argument("--log_scaler", "-ls", action="store_true")
     parser.add_argument("--mean_scaler", "-ms", action="store_true")
@@ -222,6 +231,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.run_test:
-        X_all = np.load(open(r"../../../data/ECW_08.npy", 'rb'), allow_pickle=True)
+        X_all = np.load(open(args.data, 'rb'), allow_pickle=True)
         y_all = X_all[:, :, 0]
         losses, test_losses, mse_l, mae_l, smape_l = train(X_all, y_all, args)

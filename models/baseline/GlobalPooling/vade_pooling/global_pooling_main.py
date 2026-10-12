@@ -21,6 +21,8 @@ if __name__ == '__main__':
     parse.add_argument('--gmm_reg_covar', type=float, default=1e-4)
     parse.add_argument('--gmm_n_init', type=int, default=3)
     parse.add_argument('--seed', type=int, default=2)
+    parse.add_argument('--source_train_ratio', type=float, default=None,
+                       help='ECW source time share used for training (0.64 regular, 0.80 new scenarios)')
 
     args=parse.parse_args()
     np.random.seed(args.seed)
@@ -28,7 +30,7 @@ if __name__ == '__main__':
     X = np.load(open(args.dataX_dir, 'rb'), allow_pickle=True)
     X = np.asarray(X)
 
-    X_train = pool_training_partition(X, args.dataX_dir)[:, :, 0]
+    X_train = pool_training_partition(X, args.dataX_dir, source_train_ratio=args.source_train_ratio)[:, :, 0]
 
     vade = VaDE(args, X_train)
     if args.cuda:

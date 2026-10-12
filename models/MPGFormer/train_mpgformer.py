@@ -17,7 +17,7 @@ except ImportError:
 from mpgformer import MPGFormer
 from data import MPGFormerWindowDataset
 from losses import MPGFormerLoss
-from protocol import split_workload, report_test_metrics
+from protocol import split_workload, report_test_metrics, mean_by_batch
 
 
 def use_dyn_azure_scale(*paths):
@@ -106,6 +106,7 @@ def evaluate(model, loader, criterion, device, static_dim, target_scaler):
     model.eval()
     losses, mses, maes, smapes = [], [], [], []
 
+    batch_sizes = []
     with torch.no_grad():
         for x, static, y, _ in loader:
             x = x.to(device)
@@ -114,12 +115,13 @@ def evaluate(model, loader, criterion, device, static_dim, target_scaler):
             out = model(x, static_context=static)
             loss, _parts = criterion(out, y)
 
+            batch_sizes.append(len(y))
             losses.append(loss.item())
             mses.append(get_mse(y, out.point, target_scaler))
             maes.append(get_mae(y, out.point, target_scaler))
             smapes.append(get_smape(y, out.point, target_scaler))
 
-    return float(np.mean(losses)), float(np.mean(mses)), float(np.mean(maes)), float(np.mean(smapes))
+    return float(mean_by_batch(losses, batch_sizes)), float(mean_by_batch(mses, batch_sizes)), float(mean_by_batch(maes, batch_sizes)), float(mean_by_batch(smapes, batch_sizes))
 
 
 def main():
@@ -136,6 +138,7 @@ def main():
     parser.add_argument("--enc_len", type=int, default=48)
     parser.add_argument("--label_len", type=int, default=12)
     parser.add_argument("--pred_len", type=int, default=24)
+    parser.add_argument("--test_step", type=int, default=12)
     parser.add_argument("--input_size", type=int, default=4)
     parser.add_argument("--static_start", type=int, default=4)
     parser.add_argument("--d_model", type=int, default=128)
@@ -211,7 +214,7 @@ def main():
         pred_len=args.pred_len,
         input_size=args.input_size,
         static_start=args.static_start,
-        stride=args.label_len,
+        stride=args.test_step,
     )
     test_ds = MPGFormerWindowDataset(
         test_raw,
@@ -220,7 +223,7 @@ def main():
         pred_len=args.pred_len,
         input_size=args.input_size,
         static_start=args.static_start,
-        stride=args.label_len,
+        stride=args.test_step,
     )
     if len(train_ds) == 0 or len(val_ds) == 0 or len(test_ds) == 0:
         raise ValueError(

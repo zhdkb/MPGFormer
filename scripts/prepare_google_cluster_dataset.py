@@ -105,10 +105,7 @@ def read_google_v1_as_buckets(path, num_buckets, bucket_key, bucket_agg):
         frame = pd.DataFrame(rows, columns=["timestamp", "cpu", "memory", "job_type"])
         if frame["cpu"].isna().all():
             continue
-        frame[["cpu", "memory", "job_type"]] = frame[["cpu", "memory", "job_type"]].interpolate(
-            limit_direction="both"
-        )
-        frame[["cpu", "memory", "job_type"]] = frame[["cpu", "memory", "job_type"]].ffill().bfill()
+        frame[["cpu", "memory", "job_type"]] = frame[["cpu", "memory", "job_type"]].ffill().fillna(0.0)
         by_bucket[bucket] = frame
 
     return by_bucket
