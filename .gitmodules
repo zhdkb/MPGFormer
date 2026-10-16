@@ -1,0 +1,21 @@
+[submodule "models/baseline/PatchTST/official"]
+	path = models/baseline/PatchTST/official
+	url = https://github.com/yuqinie98/PatchTST.git
+[submodule "models/baseline/NS_Transformer/official"]
+	path = models/baseline/NS_Transformer/official
+	url = https://github.com/thuml/Nonstationary_Transformers.git
+[submodule "models/baseline/Pathformer/official"]
+	path = models/baseline/Pathformer/official
+	url = https://github.com/decisionintelligence/pathformer.git
+[submodule "models/baseline/TimeMixer/official"]
+	path = models/baseline/TimeMixer/official
+	url = https://github.com/kwuking/TimeMixer.git
+[submodule "models/baseline/MSGNet/official"]
+	path = models/baseline/MSGNet/official
+	url = https://github.com/YoZhibo/MSGNet.git
+[submodule "models/baseline/CrossGNN/official"]
+	path = models/baseline/CrossGNN/official
+	url = https://github.com/hqh0728/CrossGNN.git
+[submodule "models/baseline/TimesNet/official"]
+	path = models/baseline/TimesNet/official
+	url = https://github.com/thuml/Time-Series-Library.git

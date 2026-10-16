@@ -73,9 +73,8 @@ class StaticContextSelector(nn.Module):
 class NonStationaryAttentionLayer(nn.Module):
     """Self-attention layer modulated by target-window statistics.
 
-    The attention temperature and bias are generated from the target mean/std,
-    so the model can react differently when a workload enters a new scale or
-    variance regime.
+    A positive temperature for each head is generated from the target mean
+    and standard deviation, as in Equation (7) of the paper.
     """
 
     def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float, moving_avg: int):
@@ -90,11 +89,11 @@ class NonStationaryAttentionLayer(nn.Module):
         self.qkv = nn.Linear(d_model, d_model * 3)
         self.out = nn.Linear(d_model, d_model)
 
-        # Produce one temperature and one additive bias for each attention head.
+        # Produce one positive temperature for each attention head.
         self.factor = nn.Sequential(
             nn.Linear(2, d_model),
             nn.GELU(),
-            nn.Linear(d_model, n_heads * 2),
+            nn.Linear(d_model, n_heads),
         )
 
         self.decomp = MovingAverageDecomposition(moving_avg)
@@ -118,9 +117,7 @@ class NonStationaryAttentionLayer(nn.Module):
             ],
             dim=-1,
         )
-        factors = self.factor(stats).view(bsz, self.n_heads, 2)
-        tau = F.softplus(factors[..., 0]).view(bsz, self.n_heads, 1, 1) + 1e-3
-        delta = factors[..., 1].view(bsz, self.n_heads, 1, 1)
+        tau = F.softplus(self.factor(stats)).view(bsz, self.n_heads, 1, 1) + 1e-3
 
         qkv = self.qkv(x).view(bsz, seq_len, 3, self.n_heads, self.head_dim)
         q, k, v = qkv.unbind(dim=2)
@@ -128,9 +125,7 @@ class NonStationaryAttentionLayer(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
 
-        logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
-        logits = tau * logits + delta
-        attn = torch.softmax(logits, dim=-1)
+        attn = self.attention_weights(q, k, tau)
 
         context = torch.matmul(self.dropout(attn), v).transpose(1, 2).contiguous()
         context = context.view(bsz, seq_len, self.d_model)
@@ -140,6 +135,12 @@ class NonStationaryAttentionLayer(nn.Module):
         x = self.norm1(x + self.dropout(self.out(context)) + 0.1 * trend)
         x = self.norm2(x + self.dropout(self.ff(seasonal + x)))
         return x
+
+    @staticmethod
+    def attention_weights(q: torch.Tensor, k: torch.Tensor, tau: torch.Tensor) -> torch.Tensor:
+        """Equation (7): softmax of positive head temperature times scaled QK."""
+        logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(q.shape[-1])
+        return torch.softmax(tau * logits, dim=-1)
 
 
 class ShortTermTemporalEncoder(nn.Module):

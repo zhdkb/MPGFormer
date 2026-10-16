@@ -1,6 +1,6 @@
-# Reproduce Included Models
+# Reproduce All 17 Models
 
-This file covers models implemented in this repository. PatchTST and six additional appendix baselines from the paper are not included. Use the commands in two steps:
+This file covers MPGFormer and every baseline in the paper's Table 10. Use the commands in two steps:
 
 1. Select one dataset preset.
 2. Run the command block for MPGFormer or a baseline.
@@ -11,7 +11,9 @@ All commands assume the repository is cloned as `/path/to/MPGFormer`.
 export REPO=/path/to/MPGFormer
 cd "$REPO"
 conda activate MPGFormer
-export SEED=0  # repeat each training command with SEED=0,1,...,10
+pip install -r requirements.txt
+git submodule update --init --recursive
+export SEED=0  # repeat each training command with matched seed IDs 0,...,10
 ```
 
 ## 1. Dataset Presets
@@ -275,7 +277,41 @@ PYTHONPATH="$REPO" python micn_workload_main.py \
   --seed "$SEED"
 ```
 
-## 4. DynEformer
+## 4. Seven Pinned Upstream Baselines
+
+The official PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet repositories are pinned as Git submodules under `models/baseline/*/official`. TimesNet's authors maintain its implementation in their Time-Series-Library repository. The local runner adapts their model interfaces to the workload tensors while preserving their architecture code and source attribution. Each model must run in a separate process because upstream repositories reuse package names such as `models` and `layers`.
+
+After selecting a dataset preset, run any one of these model names: `PatchTST`, `NS-Transformer`, `Pathformer`, `TimeMixer`, `MSGNet`, `CrossGNN`, or `TimesNet`.
+
+```bash
+cd "$REPO"
+PYTHONPATH="$REPO" python models/baseline/official_runner.py \
+  --model PatchTST \
+  --train_data "$TRAIN" \
+  "${test_arg[@]}" \
+  "${val_arg[@]}" \
+  --input_size "$INPUT_SIZE" \
+  --seq_len 48 --label_len 12 --pred_len 24 \
+  --epochs "$EPOCHS" --batch_size "$BATCH" \
+  --test_step "$TEST_STEP" --seed "$SEED"
+```
+
+The runner uses Adam at `1e-4`, a fixed training window stride of 12, validation MSE for checkpoint selection, and one final held-out test evaluation. It saves checkpoints and metrics separately for each model, dataset, and seed. Its general CLI defaults are `d_model=64`, `d_ff=128`, four heads, two encoder layers, and dropout 0.1; architecture-specific settings are explicit in `official_runner.py`. Pathformer patch sizes are divisors of the paper's 48-point history. These choices are explicit reproduction settings; the paper does not specify every baseline hyperparameter.
+
+To run all seven models on one dataset with the complete matched seed set:
+
+```bash
+cd "$REPO"
+python scripts/run_official_11_seeds.py --dataset MT2
+```
+
+The accepted dataset names are `ECW`, `NewInfras`, `NewApp`, `Azure`, `GoogleV1`, `MT1`, `MT2`, and `MT3`. Run once for each dataset needed for the main and appendix tables. The script writes one `TEST_METRICS` record per run to `logs/official_baselines/<dataset>/runs.jsonl`; it accepts `--models` for a subset and `--seeds` or `--epochs` only for debugging. Keep the full 0–10 seed range and the paper's epoch budgets for a paper reproduction.
+
+```bash
+python scripts/summarize_seed_runs.py logs/official_baselines/MT2/runs.jsonl
+```
+
+## 5. DynEformer
 
 DynEformer requires a Global Pool before training. The ECW commands use a fixed cluster count; the Azure, Google, and Materna commands search for `K` on training data before building a pool.
 
@@ -379,7 +415,7 @@ PYTHONPATH="$REPO" python dyneformer_google_main.py \
 
 Run only the command that matches the selected dataset.
 
-## 5. Notes
+## 6. Notes
 
 - Prepare datasets first with [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md).
 - Training entries fit scalers on their training partitions. Validation MSE selects the checkpoint, followed by one test evaluation. DynEformer's global pool is fitted on the training partition.

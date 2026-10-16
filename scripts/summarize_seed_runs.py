@@ -1,4 +1,4 @@
-"""Summarize the TEST_METRICS lines emitted by training entries.
+"""Summarize TEST_METRICS log lines or plain JSONL records.
 
 Example: python scripts/summarize_seed_runs.py run.log --baseline informer_workload_main
 """
@@ -16,15 +16,22 @@ def read_records(paths):
     for path in paths:
         with open(path, encoding="utf-8") as stream:
             for line in stream:
-                if "TEST_METRICS " not in line:
+                if "TEST_METRICS " in line:
+                    record = json.loads(line.split("TEST_METRICS ", 1)[1])
+                elif line.lstrip().startswith("{"):
+                    record = json.loads(line)
+                    if not {"dataset", "model", "seed", "mse", "mae", "smape"} <= record.keys():
+                        continue
+                else:
                     continue
-                record = json.loads(line.split("TEST_METRICS ", 1)[1])
                 if not all(np.isfinite(float(record[name])) for name in ("mse", "mae", "smape")):
                     raise ValueError("Non-finite test metric in {}".format(path))
                 key = (record["dataset"], record["model"], record["seed"])
                 if key in records:
                     raise ValueError("Duplicate test result for {}".format(key))
                 records[key] = record
+    if not records:
+        raise ValueError("No TEST_METRICS records found")
     return records
 
 
@@ -40,16 +47,16 @@ def holm_adjust(pvalues):
 
 def summarize(records, baseline=None, metric="mae", model=None):
     groups = defaultdict(dict)
-    for (dataset, model, seed), record in records.items():
-        groups[(dataset, model)][seed] = float(record[metric])
-    for (dataset, model), by_seed in sorted(groups.items()):
+    for (dataset, model_name, seed), record in records.items():
+        groups[(dataset, model_name)][seed] = float(record[metric])
+    for (dataset, model_name), by_seed in sorted(groups.items()):
         seeds = set(by_seed)
         if seeds != set(range(11)):
             raise ValueError("{} {} needs exactly matched seeds 0..10; found {}".format(
-                dataset, model, sorted(seeds)))
+                dataset, model_name, sorted(seeds)))
         values = np.array([by_seed[i] for i in range(11)])
         print("{} {} {} mean={:.8f} sample_sd={:.8f}".format(
-            dataset, model, metric, values.mean(), values.std(ddof=1)))
+            dataset, model_name, metric, values.mean(), values.std(ddof=1)))
 
     if baseline:
         comparisons = []
@@ -63,7 +70,7 @@ def summarize(records, baseline=None, metric="mae", model=None):
             mean = differences.mean()
             se = differences.std(ddof=1) / np.sqrt(11)
             half_width = stats.t.ppf(0.975, df=10) * se
-            if se == 0:
+            if np.isclose(se, 0.0, atol=1e-15):
                 pvalue = 1.0 if mean == 0 else 0.0
             else:
                 pvalue = stats.ttest_1samp(differences, 0).pvalue
