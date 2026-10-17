@@ -189,6 +189,7 @@ class MPGFormer(nn.Module):
     def _encode_history(
         self,
         enc_input: torch.Tensor,
+        raw_target_history: torch.Tensor,
         static_context: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Encode historical workload tokens and return their global summary."""
@@ -198,7 +199,7 @@ class MPGFormer(nn.Module):
         encoded = self.static_selector(encoded, static_context)
 
         for layer in self.long_layers:
-            encoded = layer(encoded, target_history)
+            encoded = layer(encoded, raw_target_history)
 
         encoded = self.short_encoder(encoded)
         time_context = encoded.mean(dim=1)
@@ -208,6 +209,7 @@ class MPGFormer(nn.Module):
         self,
         time_context: torch.Tensor,
         target_history: torch.Tensor,
+        raw_target_history: torch.Tensor,
         static_context: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute prototype/graph experts and combine them with drift-aware routing."""
@@ -227,6 +229,7 @@ class MPGFormer(nn.Module):
         if use_graph:
             graph_context, contrastive_loss, adj = self.graph_encoder(
                 time_context, target_history, static_context,
+                raw_target_history=raw_target_history,
                 use_workload_graph=use_workload_graph, use_context_graph=use_context_graph)
         else:
             graph_context = torch.zeros_like(time_context)
@@ -237,7 +240,7 @@ class MPGFormer(nn.Module):
             time_context=time_context,
             graph_context=graph_context,
             prototype_context=prototype_context,
-            target_history=target_history,
+            target_history=raw_target_history,
             prototype_weights=prototype_weights,
             active_experts=(True, use_graph, use_prototype),
             use_prototype_entropy=use_prototype and "prototype_entropy" not in self.disabled_components,
@@ -301,11 +304,13 @@ class MPGFormer(nn.Module):
             static_context = static_context.float()
 
         enc_raw, dec_raw = self._split_inputs(x)
+        raw_target_history = enc_raw[..., self.target_index]
         enc_input, dec_input, mean, std = self._normalize_inputs(enc_raw, dec_raw)
 
-        encoded, target_history, time_context = self._encode_history(enc_input, static_context)
+        encoded, target_history, time_context = self._encode_history(
+            enc_input, raw_target_history, static_context)
         fused_context, future_padding, prototype_weights, contrastive_loss, adj, router_weights, drift_score = (
-            self._fuse_expert_contexts(time_context, target_history, static_context)
+            self._fuse_expert_contexts(time_context, target_history, raw_target_history, static_context)
         )
 
         decoded = self._decode_future(encoded, dec_input, fused_context, future_padding, static_context)

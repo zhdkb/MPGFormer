@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 import torch
 
@@ -50,6 +51,24 @@ class MPGFormerContractTest(unittest.TestCase):
         loss.backward()
         self.assertTrue(torch.isfinite(model.long_layers[0].qkv.weight.grad).all())
         self.assertTrue(torch.isfinite(model.prototype_bank.prototype.grad).all())
+
+    def test_raw_history_controls_attention_router_and_context_graph(self):
+        model = self._small_model().eval()
+        x = torch.randn(2, 72, 4)
+        x[:, :48, 0] = x[:, :48, 0] * 3.0 + 10.0
+        raw_history = x[:, :48, 0]
+        with mock.patch.object(model.input_proj, "forward", wraps=model.input_proj.forward) as embed, \
+                mock.patch.object(model.router, "forward", wraps=model.router.forward) as route, \
+                mock.patch.object(model.graph_encoder, "_state_features",
+                                  wraps=model.graph_encoder._state_features) as state:
+            with torch.no_grad():
+                output = model(x)
+        torch.testing.assert_close(route.call_args.kwargs["target_history"], raw_history)
+        torch.testing.assert_close(state.call_args.args[0], raw_history)
+        normalized_history = (raw_history - raw_history.mean(1, keepdim=True)) / raw_history.std(
+            1, keepdim=True, unbiased=False)
+        torch.testing.assert_close(embed.call_args.args[0][..., 0], normalized_history)
+        self.assertTrue(torch.isfinite(output.point).all())
 
     def test_component_ablations_preserve_forward_and_loss_contract(self):
         torch.manual_seed(13)

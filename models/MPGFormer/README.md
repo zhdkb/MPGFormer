@@ -8,6 +8,15 @@ MPGFormer is implemented in code as `MPGFormer`. It is a workload forecasting mo
 - dynamic graph contrastive learning,
 - point and quantile forecasting.
 
+The temporal attention MLP receives four statistics from the target history
+before RevIN: mean, standard deviation, least-squares slope, and mean absolute
+first difference. Its positive output multiplies the scaled query-key logits
+for each head. The queries, keys, values, prototype input, and workload graph
+still use the normalized target history; raw history also supplies drift cues
+and fallback context-graph statistics when static metadata is unavailable.
+The four-input attention MLP changes checkpoint tensor shapes; checkpoints
+trained with the earlier two-statistic model must be retrained.
+
 An online conformal calibration utility is available separately from the default training entry.
 
 ## Input

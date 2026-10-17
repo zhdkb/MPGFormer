@@ -6,7 +6,7 @@ MPGFormer formulates cloud workload forecasting as a drift-aware evidence select
 
 ## Highlights
 
-- **Non-stationary temporal evidence modeling** with window-statistics-modulated attention.
+- **Non-stationary temporal evidence modeling** with attention scaled by pre-RevIN target-history mean, standard deviation, least-squares slope, and mean absolute first difference.
 - **Multi-scale time-frequency prototype retrieval** for reusable workload shape patterns.
 - **Batch-wise dynamic graph evidence** for cross-workload co-fluctuation modeling.
 - **Drift-aware evidence routing** that combines temporal, prototype, and graph contexts.

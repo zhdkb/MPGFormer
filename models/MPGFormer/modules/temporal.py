@@ -73,8 +73,8 @@ class StaticContextSelector(nn.Module):
 class NonStationaryAttentionLayer(nn.Module):
     """Self-attention layer modulated by target-window statistics.
 
-    A positive temperature for each head is generated from the target mean
-    and standard deviation, as in Equation (7) of the paper.
+    A positive per-head scale is generated from pre-RevIN target statistics.
+    Queries, keys, and values still come from the normalized history states.
     """
 
     def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float, moving_avg: int,
@@ -91,9 +91,9 @@ class NonStationaryAttentionLayer(nn.Module):
         self.qkv = nn.Linear(d_model, d_model * 3)
         self.out = nn.Linear(d_model, d_model)
 
-        # Produce one positive temperature for each attention head.
+        # Produce one positive inverse-temperature scale for each attention head.
         self.factor = nn.Sequential(
-            nn.Linear(2, d_model),
+            nn.Linear(4, d_model),
             nn.GELU(),
             nn.Linear(d_model, n_heads),
         )
@@ -109,17 +109,27 @@ class NonStationaryAttentionLayer(nn.Module):
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x: torch.Tensor, target_history: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def raw_window_statistics(raw_target_history: torch.Tensor) -> torch.Tensor:
+        """Mean, scale, least-squares slope, and mean absolute first difference."""
+        if raw_target_history.ndim != 2 or raw_target_history.size(1) < 2:
+            raise ValueError("raw_target_history must have shape [batch, length >= 2]")
+        length = raw_target_history.size(1)
+        time = torch.arange(length, device=raw_target_history.device,
+                            dtype=raw_target_history.dtype)
+        centered_time = time - time.mean()
+        mean = raw_target_history.mean(dim=1)
+        scale = raw_target_history.std(dim=1, unbiased=False).clamp_min(1e-5)
+        slope = ((raw_target_history - mean[:, None]) * centered_time).sum(dim=1)
+        slope = slope / centered_time.square().sum()
+        first_difference = (raw_target_history[:, 1:] - raw_target_history[:, :-1]).abs().mean(dim=1)
+        return torch.stack((mean, scale, slope, first_difference), dim=-1)
+
+    def forward(self, x: torch.Tensor, raw_target_history: torch.Tensor) -> torch.Tensor:
         bsz, seq_len, _ = x.shape
 
         if self.use_temperature:
-            stats = torch.stack(
-                [
-                    target_history.mean(dim=1),
-                    target_history.std(dim=1, unbiased=False).clamp_min(1e-5),
-                ],
-                dim=-1,
-            )
+            stats = self.raw_window_statistics(raw_target_history)
             tau = F.softplus(self.factor(stats)).view(bsz, self.n_heads, 1, 1) + 1e-3
         else:
             tau = x.new_ones(bsz, self.n_heads, 1, 1)
