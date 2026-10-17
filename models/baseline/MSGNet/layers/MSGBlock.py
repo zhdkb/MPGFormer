@@ -3,9 +3,6 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from torch import nn, Tensor
-from einops import rearrange
-from einops.layers.torch import Rearrange
 from utils.masking import TriangularCausalMask
 
 class Predict(nn.Module):
@@ -192,83 +189,3 @@ class mixprop(nn.Module):
         ho = torch.cat(out,dim=1)
         ho = self.mlp(ho)
         return ho
-
-
-class simpleVIT(nn.Module):
-    def __init__(self, in_channels, emb_size, patch_size=2, depth=1, num_heads=4, dropout=0.1,init_weight =True):
-        super(simpleVIT, self).__init__()
-        self.emb_size = emb_size
-        self.depth = depth
-        self.to_patch = nn.Sequential(
-            nn.Conv2d(in_channels, emb_size, 2 * patch_size + 1, padding= patch_size),
-            Rearrange('b e (h) (w) -> b (h w) e'),
-        )
-        self.layers = nn.ModuleList([])
-        for _ in range(self.depth):
-            self.layers.append(nn.ModuleList([
-                nn.LayerNorm(emb_size),
-                MultiHeadAttention(emb_size, num_heads, dropout),
-                FeedForward(emb_size,  emb_size)
-            ]))
-
-        if init_weight:
-            self._initialize_weights()
-
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-
-    def forward(self,x):
-        B , N ,_ ,P = x.shape
-        x = self.to_patch(x)
-        # x = x.permute(0, 2, 3, 1).reshape(B,-1, N)
-        for  norm ,attn, ff in self.layers:
-            x = attn(norm(x)) + x
-            x = ff(x) + x
-
-        x = x.transpose(1,2).reshape(B, self.emb_size ,-1, P)
-        return x
-
-class MultiHeadAttention(nn.Module):
-    def __init__(self, emb_size, num_heads, dropout):
-        super().__init__()
-        self.emb_size = emb_size
-        self.num_heads = num_heads
-        self.keys = nn.Linear(emb_size, emb_size)
-        self.queries = nn.Linear(emb_size, emb_size)
-        self.values = nn.Linear(emb_size, emb_size)
-        self.att_drop = nn.Dropout(dropout)
-        self.projection = nn.Linear(emb_size, emb_size)
-
-    def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
-        queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.num_heads)
-        keys = rearrange(self.keys(x), "b n (h d) -> b h n d", h=self.num_heads)
-        values = rearrange(self.values(x), "b n (h d) -> b h n d", h=self.num_heads)
-        energy = torch.einsum('bhqd, bhkd -> bhqk', queries, keys)
-        if mask is not None:
-            fill_value = torch.finfo(torch.float32).min
-            energy.mask_fill(~mask, fill_value)
-
-        scaling = self.emb_size ** (1 / 2)
-        att = F.softmax(energy, dim=-1) / scaling
-        att = self.att_drop(att)
-        # sum up over the third axis
-        out = torch.einsum('bhal, bhlv -> bhav ', att, values)
-        out = rearrange(out, "b h n d -> b n (h d)")
-        out = self.projection(out)
-        return out
-
-class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, dim),
-        )
-    def forward(self, x):
-        return self.net(x)

@@ -1,11 +1,10 @@
-import numpy as np
 # import pywt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.fft
 from layers.Embed import DataEmbedding
-from layers.MSGBlock import GraphBlock, simpleVIT, Attention_Block, Predict
+from layers.MSGBlock import GraphBlock, Attention_Block, Predict
 
 
 def FFT_for_Period(x, k=2):
@@ -61,10 +60,6 @@ class ScaleGraphBlock(nn.Module):
             out = self.norm(self.att0(out))
             out = self.gelu(out)
             out = out.reshape(B, -1 , scale , N).reshape(B ,-1 ,N)
-        # #for simpleVIT
-        #     out = self.att(out.permute(0, 3, 1, 2).contiguous()) #return
-        #     out = out.permute(0, 2, 3, 1).reshape(B, -1 ,N)
-
             out = out[:, :self.seq_len, :]
             res.append(out)
 

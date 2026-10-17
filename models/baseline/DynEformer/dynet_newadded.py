@@ -82,7 +82,7 @@ def reference(X, y, args):
         print('The Mean Squared Error of forecasts is {} (raw)'.format(test_mse))
         print('The Mean Absolute Error of forecasts is {} (raw)'.format(test_mae))
         print('The SMAPE of forecasts is {}% (raw)'.format(test_smape))
-        report_test_metrics('dyneformer_main', args.seed, 'ECW_08.npy', 'ECW_newapp.pkl',
+        report_test_metrics('DynEformer', args.seed, 'ECW_08.npy', 'ECW_newapp.pkl',
                             test_mse, test_mae, test_smape)
 
 

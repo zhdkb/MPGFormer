@@ -241,7 +241,7 @@ def train(args):
         test_loss, test_mse, test_mae, test_smape
     ))
 
-    report_test_metrics(Path(__file__).stem, args.seed, args.train_data, args.test_data, test_mse, test_mae, test_smape)
+    report_test_metrics('DynEformer', args.seed, args.train_data, args.test_data, test_mse, test_mae, test_smape)
 
 
 if __name__ == "__main__":

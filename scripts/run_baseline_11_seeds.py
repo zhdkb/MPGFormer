@@ -93,6 +93,10 @@ def main():
                 returncode = process.wait()
             if returncode or len(metrics) != 1:
                 raise RuntimeError(f"{model} seed {seed} failed; inspect {log_path}")
+            expected_dataset = Path(test).stem if test else "ECW"
+            if (metrics[0].get("model") != model or metrics[0].get("seed") != seed
+                    or metrics[0].get("dataset") != expected_dataset):
+                raise RuntimeError(f"{model} seed {seed} reported inconsistent metrics; inspect {log_path}")
             records.extend(metrics)
             (output / "runs.jsonl").write_text("".join(json.dumps(item, sort_keys=True) + "\n" for item in records))
     print(f"Wrote {len(records)} test records to {output / 'runs.jsonl'}")

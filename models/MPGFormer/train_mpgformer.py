@@ -132,8 +132,8 @@ def main():
     parser.add_argument("--test_data", type=str, default=None)
     parser.add_argument("--val_data", type=str, default=None)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--epochs", type=int, default=80)
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--enc_len", type=int, default=48)
     parser.add_argument("--label_len", type=int, default=12)
@@ -147,6 +147,7 @@ def main():
     parser.add_argument("--e_layers", type=int, default=2)
     parser.add_argument("--d_layers", type=int, default=1)
     parser.add_argument("--num_prototypes", type=int, default=48)
+    parser.add_argument("--graph_topk", type=int, default=8)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--save_dir", type=str, default="saved_model")
     parser.add_argument("--point_weight", type=float, default=0.9)
@@ -248,6 +249,7 @@ def main():
         dropout=args.dropout,
         static_dim=static_dim,
         num_prototypes=args.num_prototypes,
+        graph_topk=args.graph_topk,
     ).to(device)
     criterion = MPGFormerLoss(
         point_weight=args.point_weight,
@@ -328,7 +330,7 @@ def main():
     print(f"test_loss={test_loss:.16f}, test_mse={test_mse:.16f}, "
           f"test_mae={test_mae:.16f}, test_smape(%)={test_smape:.16f}")
 
-    report_test_metrics(Path(__file__).stem, args.seed, args.data, args.test_data, test_mse, test_mae, test_smape)
+    report_test_metrics('MPGFormer', args.seed, args.data, args.test_data, test_mse, test_mae, test_smape)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,8 @@ class DynamicGraphContrastiveEncoder(nn.Module):
 
     def __init__(self, d_model: int, static_dim: int, dropout: float, topk: int = 8, temperature: float = 0.5):
         super().__init__()
+        if topk < 1:
+            raise ValueError("topk must be positive")
         self.topk = topk
         self.temperature = temperature
         self.static_dim = static_dim
@@ -50,11 +52,13 @@ class DynamicGraphContrastiveEncoder(nn.Module):
         sim = sim.clamp_min(0.0)
 
         if bsz > 1:
-            k = min(self.topk + 1, bsz)
-            threshold = torch.topk(sim, k=k, dim=-1).values[:, -1].unsqueeze(-1)
-            adj = torch.where(sim >= threshold, sim, torch.zeros_like(sim))
+            # Select exactly k other windows. Thresholding includes every tied
+            # zero similarity and can turn a sparse graph into a dense one.
+            candidates = sim.masked_fill(torch.eye(bsz, device=sim.device, dtype=torch.bool), -1.0)
+            neighbors = candidates.topk(k=min(self.topk, bsz - 1), dim=-1).indices
+            adj = torch.zeros_like(sim).scatter(1, neighbors, sim.gather(1, neighbors))
         else:
-            adj = torch.ones_like(sim)
+            adj = torch.zeros_like(sim)
 
         # Add self loops and normalize to make graph aggregation scale-stable.
         adj = adj + torch.eye(bsz, device=features.device, dtype=features.dtype)

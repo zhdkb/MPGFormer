@@ -4,6 +4,7 @@ import numpy as np
 
 from protocol import mean_by_batch, pool_training_partition, report_test_metrics, split_workload
 from models.MPGFormer.data import MPGFormerWindowDataset
+from models.MPGFormer.modules.graph import DynamicGraphContrastiveEncoder
 
 
 class SplitProtocolTest(unittest.TestCase):
@@ -78,6 +79,15 @@ class SplitProtocolTest(unittest.TestCase):
         np.testing.assert_array_equal(x[48:, 1:4].numpy(), data[0, 48:, 1:4])
         self.assertTrue((x[48:, 0] == 0).all())
         self.assertTrue((x[48:, 4:] == 0).all())
+
+    def test_graph_topk_remains_sparse_with_tied_similarities(self):
+        import torch
+
+        encoder = DynamicGraphContrastiveEncoder(8, 0, 0.0, topk=2)
+        features = torch.ones(5, 48)
+        adjacency = encoder._similarity_graph(features)
+        self.assertTrue(torch.all((adjacency > 0).sum(dim=1) == 3))
+        torch.testing.assert_close(adjacency.sum(dim=1), torch.ones(5))
 
 
 if __name__ == "__main__":

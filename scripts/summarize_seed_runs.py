@@ -1,6 +1,6 @@
 """Summarize TEST_METRICS log lines or plain JSONL records.
 
-Example: python scripts/summarize_seed_runs.py run.log --baseline informer_workload_main
+Example: python scripts/summarize_seed_runs.py run.log --baseline Informer
 """
 
 import argparse

@@ -46,3 +46,7 @@ PYTHONPATH=../.. python train_mpgformer.py \
   --label_len 12 \
   --pred_len 24
 ```
+
+For the paper's sensitivity analysis, vary `--e_layers`, `--n_heads`,
+`--num_prototypes`, or `--graph_topk` while keeping the dataset preset and
+validation-selected checkpoint protocol fixed.

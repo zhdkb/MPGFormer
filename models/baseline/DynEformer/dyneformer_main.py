@@ -190,7 +190,7 @@ def train(X, y, args):
     test_metrics = evaluate(Xte_loader)
     print('best epoch: {}, validation mse: {}'.format(best_epoch, min_loss))
     print('test loss: {}, test mse: {}, test mae: {}, test smape(%): {}'.format(*test_metrics))
-    report_test_metrics('dyneformer_main', args.seed, args.data, args.test_data, *test_metrics[1:])
+    report_test_metrics('DynEformer', args.seed, args.data, args.test_data, *test_metrics[1:])
     return losses, *test_metrics
 
 
