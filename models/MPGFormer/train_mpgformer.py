@@ -148,6 +148,9 @@ def main():
     parser.add_argument("--d_layers", type=int, default=1)
     parser.add_argument("--num_prototypes", type=int, default=48)
     parser.add_argument("--graph_topk", type=int, default=8)
+    parser.add_argument("--disable", nargs="*", default=[], choices=(
+        "revin", "temperature", "short_encoder", "prototype", "graph", "router",
+        "workload_graph", "context_graph", "prototype_entropy", "drift_bias"))
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--save_dir", type=str, default="saved_model")
     parser.add_argument("--point_weight", type=float, default=0.9)
@@ -250,6 +253,7 @@ def main():
         static_dim=static_dim,
         num_prototypes=args.num_prototypes,
         graph_topk=args.graph_topk,
+        disabled_components=args.disable,
     ).to(device)
     criterion = MPGFormerLoss(
         point_weight=args.point_weight,

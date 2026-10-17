@@ -33,12 +33,19 @@ class DriftAwareRouter(nn.Module):
         prototype_context: torch.Tensor,
         target_history: torch.Tensor,
         prototype_weights: torch.Tensor,
+        active_experts=(True, True, True),
+        use_prototype_entropy: bool = True,
+        use_drift_bias: bool = True,
+        fixed_average: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         diff = target_history[:, 1:] - target_history[:, :-1]
 
         # High entropy means the prototype bank is uncertain about the current pattern.
-        entropy = -(prototype_weights * prototype_weights.clamp_min(1e-8).log()).sum(dim=-1)
-        entropy = entropy / math.log(max(2, prototype_weights.size(-1)))
+        if use_prototype_entropy:
+            entropy = -(prototype_weights * prototype_weights.clamp_min(1e-8).log()).sum(dim=-1)
+            entropy = entropy / math.log(max(2, prototype_weights.size(-1)))
+        else:
+            entropy = target_history.new_zeros(target_history.size(0))
 
         drift_features = torch.stack(
             [
@@ -54,6 +61,11 @@ class DriftAwareRouter(nn.Module):
         logits = self.router(torch.cat([time_context, graph_context, prototype_context, drift_features], dim=-1))
         drift_score = torch.sigmoid(self.drift_head(drift_features)).squeeze(-1)
 
-        # Bias the first two experts according to estimated drift severity.
-        logits = logits + torch.stack([1.0 - drift_score, drift_score, torch.zeros_like(drift_score)], dim=-1)
+        if use_drift_bias:
+            logits = logits + torch.stack([1.0 - drift_score, drift_score, torch.zeros_like(drift_score)], dim=-1)
+        active = torch.as_tensor(active_experts, device=logits.device, dtype=torch.bool)
+        if fixed_average:
+            weights = active.to(logits.dtype).expand_as(logits)
+            return weights / weights.sum(dim=-1, keepdim=True), drift_score
+        logits = logits.masked_fill(~active, torch.finfo(logits.dtype).min)
         return torch.softmax(logits, dim=-1), drift_score

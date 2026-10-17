@@ -98,18 +98,27 @@ class DynamicGraphContrastiveEncoder(nn.Module):
         temporal_summary: torch.Tensor,
         target_history: torch.Tensor,
         static_context: Optional[torch.Tensor],
+        use_workload_graph: bool = True,
+        use_context_graph: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        workload_adj = self._similarity_graph(target_history)
+        if not (use_workload_graph or use_context_graph):
+            raise ValueError("At least one graph view must be enabled")
+
+        bsz = target_history.size(0)
+        empty_adj = target_history.new_zeros(bsz, bsz)
+        empty_view = torch.zeros_like(temporal_summary)
+        workload_adj = self._similarity_graph(target_history) if use_workload_graph else empty_adj
 
         if static_context is not None and self.static_proj is not None:
             context_seed = self.static_proj(static_context.float())
         else:
             context_seed = self.state_proj(self._state_features(target_history))
 
-        context_adj = self._similarity_graph(context_seed)
-        z1 = self.gcn_workload(temporal_summary, workload_adj)
-        z2 = self.gcn_context(temporal_summary, context_adj)
+        context_adj = self._similarity_graph(context_seed) if use_context_graph else empty_adj
+        z1 = self.gcn_workload(temporal_summary, workload_adj) if use_workload_graph else empty_view
+        z2 = self.gcn_context(temporal_summary, context_adj) if use_context_graph else empty_view
 
-        loss = self._contrastive_loss(z1, z2)
+        loss = self._contrastive_loss(z1, z2) if use_workload_graph and use_context_graph else z1.new_zeros(())
         graph_context = self.output(torch.cat([z1, z2], dim=-1))
-        return graph_context, loss, 0.5 * (workload_adj + context_adj)
+        view_count = int(use_workload_graph) + int(use_context_graph)
+        return graph_context, loss, (workload_adj + context_adj) / view_count

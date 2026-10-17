@@ -77,7 +77,8 @@ class NonStationaryAttentionLayer(nn.Module):
     and standard deviation, as in Equation (7) of the paper.
     """
 
-    def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float, moving_avg: int):
+    def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float, moving_avg: int,
+                 use_temperature: bool = True):
         super().__init__()
         if d_model % n_heads != 0:
             raise ValueError("d_model must be divisible by n_heads")
@@ -85,6 +86,7 @@ class NonStationaryAttentionLayer(nn.Module):
         self.d_model = d_model
         self.n_heads = n_heads
         self.head_dim = d_model // n_heads
+        self.use_temperature = use_temperature
 
         self.qkv = nn.Linear(d_model, d_model * 3)
         self.out = nn.Linear(d_model, d_model)
@@ -110,14 +112,17 @@ class NonStationaryAttentionLayer(nn.Module):
     def forward(self, x: torch.Tensor, target_history: torch.Tensor) -> torch.Tensor:
         bsz, seq_len, _ = x.shape
 
-        stats = torch.stack(
-            [
-                target_history.mean(dim=1),
-                target_history.std(dim=1, unbiased=False).clamp_min(1e-5),
-            ],
-            dim=-1,
-        )
-        tau = F.softplus(self.factor(stats)).view(bsz, self.n_heads, 1, 1) + 1e-3
+        if self.use_temperature:
+            stats = torch.stack(
+                [
+                    target_history.mean(dim=1),
+                    target_history.std(dim=1, unbiased=False).clamp_min(1e-5),
+                ],
+                dim=-1,
+            )
+            tau = F.softplus(self.factor(stats)).view(bsz, self.n_heads, 1, 1) + 1e-3
+        else:
+            tau = x.new_ones(bsz, self.n_heads, 1, 1)
 
         qkv = self.qkv(x).view(bsz, seq_len, 3, self.n_heads, self.head_dim)
         q, k, v = qkv.unbind(dim=2)

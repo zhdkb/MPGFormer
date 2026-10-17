@@ -50,3 +50,26 @@ PYTHONPATH=../.. python train_mpgformer.py \
 For the paper's sensitivity analysis, vary `--e_layers`, `--n_heads`,
 `--num_prototypes`, or `--graph_topk` while keeping the dataset preset and
 validation-selected checkpoint protocol fixed.
+
+For component ablations, pass `--disable` followed by one or more component
+names. The names are `revin`, `temperature`, `short_encoder`, `prototype`,
+`graph`, `router`, `workload_graph`, `context_graph`, `prototype_entropy`, and
+`drift_bias`. For example, `--disable workload_graph` removes only the workload
+graph view, while `--disable workload_graph context_graph` removes both views.
+`temperature` sets the attention temperature to one, matching the paper's
+standard-attention ablation; `router` averages the active experts equally.
+Loss ablations set `--quantile_weight 0`, `--peak_weight 0`, or both
+`--tail_mse_weight 0 --target_tail_mse_weight 0`. Set
+`--contrastive_weight 0` to remove graph-view alignment while retaining both
+graph views.
+
+From the repository root, use the matched-seed runner for each paper variant:
+
+```bash
+python scripts/run_baseline_11_seeds.py --dataset GoogleV1 \
+  --models MPGFormer --mpgformer_variant no_both_views
+```
+
+`--mpgformer_variant` lists all broad, fine, and loss variants. By default the
+runner uses seeds 0 through 10 and writes each variant into a separate log
+directory under the dataset. The processed dataset files must be in `data/`.

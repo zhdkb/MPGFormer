@@ -71,15 +71,22 @@ class MPGFormer(nn.Module):
         graph_topk: int = 8,
         quantiles: Sequence[float] = (0.1, 0.5, 0.9),
         use_revin: bool = True,
+        disabled_components: Sequence[str] = (),
     ):
         super().__init__()
+        allowed = {"revin", "temperature", "short_encoder", "prototype", "graph", "router",
+                   "workload_graph", "context_graph", "prototype_entropy", "drift_bias"}
+        unknown = set(disabled_components) - allowed
+        if unknown:
+            raise ValueError(f"Unknown disabled components: {sorted(unknown)}")
+        self.disabled_components = frozenset(disabled_components)
         self.input_size = input_size
         self.enc_seq_len = enc_seq_len
         self.label_len = label_len
         self.pred_len = pred_len
         self.target_index = target_index
         self.quantiles = tuple(float(q) for q in quantiles)
-        self.use_revin = use_revin
+        self.use_revin = use_revin and "revin" not in self.disabled_components
 
         # Input and context adapters.
         self.revin = TargetRevIN(target_index=target_index)
@@ -90,9 +97,12 @@ class MPGFormer(nn.Module):
 
         # Temporal encoders: long memory attention followed by burst-sensitive local encoding.
         self.long_layers = nn.ModuleList(
-            [NonStationaryAttentionLayer(d_model, n_heads, d_ff, dropout, moving_avg) for _ in range(e_layers)]
+            [NonStationaryAttentionLayer(d_model, n_heads, d_ff, dropout, moving_avg,
+                                         use_temperature="temperature" not in self.disabled_components)
+             for _ in range(e_layers)]
         )
-        self.short_encoder = ShortTermTemporalEncoder(d_model, dropout)
+        self.short_encoder = (nn.Identity() if "short_encoder" in self.disabled_components
+                              else ShortTermTemporalEncoder(d_model, dropout))
 
         # Auxiliary experts used by the drift-aware router.
         self.prototype_bank = MultiScaleTimeFrequencyBank(
@@ -202,8 +212,26 @@ class MPGFormer(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute prototype/graph experts and combine them with drift-aware routing."""
 
-        prototype_context, future_padding, prototype_weights, _ = self.prototype_bank(target_history)
-        graph_context, contrastive_loss, adj = self.graph_encoder(time_context, target_history, static_context)
+        use_prototype = "prototype" not in self.disabled_components
+        use_workload_graph = "workload_graph" not in self.disabled_components
+        use_context_graph = "context_graph" not in self.disabled_components
+        use_graph = "graph" not in self.disabled_components and (use_workload_graph or use_context_graph)
+
+        if use_prototype:
+            prototype_context, future_padding, prototype_weights, _ = self.prototype_bank(target_history)
+        else:
+            prototype_context = torch.zeros_like(time_context)
+            future_padding = target_history.new_zeros(target_history.size(0), self.pred_len)
+            prototype_weights = target_history.new_zeros(
+                target_history.size(0), self.prototype_bank.num_scales * self.prototype_bank.num_prototypes)
+        if use_graph:
+            graph_context, contrastive_loss, adj = self.graph_encoder(
+                time_context, target_history, static_context,
+                use_workload_graph=use_workload_graph, use_context_graph=use_context_graph)
+        else:
+            graph_context = torch.zeros_like(time_context)
+            contrastive_loss = time_context.new_zeros(())
+            adj = target_history.new_zeros(target_history.size(0), target_history.size(0))
 
         router_weights, drift_score = self.router(
             time_context=time_context,
@@ -211,6 +239,10 @@ class MPGFormer(nn.Module):
             prototype_context=prototype_context,
             target_history=target_history,
             prototype_weights=prototype_weights,
+            active_experts=(True, use_graph, use_prototype),
+            use_prototype_entropy=use_prototype and "prototype_entropy" not in self.disabled_components,
+            use_drift_bias="drift_bias" not in self.disabled_components,
+            fixed_average="router" in self.disabled_components,
         )
 
         fused_context = (

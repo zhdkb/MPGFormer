@@ -37,6 +37,25 @@ DATASETS = {
     "MT2": ("tr_materna_mt2.npy", "va_materna_mt2.npy", "te_materna_mt2.npy", 10, 30, 64, 12),
     "MT3": ("tr_materna_mt3.npy", "va_materna_mt3.npy", "te_materna_mt3.npy", 10, 30, 64, 12),
 }
+MPGFORMER_VARIANTS = {
+    "full": (),
+    "no_revin": ("--disable", "revin"),
+    "no_ns_attn": ("--disable", "temperature"),
+    "no_shortenc": ("--disable", "short_encoder"),
+    "no_proto": ("--disable", "prototype"),
+    "no_graph": ("--disable", "graph"),
+    "no_router": ("--disable", "router"),
+    "no_workload_graph": ("--disable", "workload_graph"),
+    "no_context_graph": ("--disable", "context_graph"),
+    "no_both_views": ("--disable", "workload_graph", "context_graph"),
+    "no_proto_entropy": ("--disable", "prototype_entropy"),
+    "no_drift_bias": ("--disable", "drift_bias"),
+    "no_both_cues": ("--disable", "prototype_entropy", "drift_bias"),
+    "no_quantile_loss": ("--quantile_weight", "0"),
+    "no_peak_loss": ("--peak_weight", "0"),
+    "no_tail_loss": ("--tail_mse_weight", "0", "--target_tail_mse_weight", "0"),
+    "no_contrastive_loss": ("--contrastive_weight", "0"),
+}
 
 
 def main():
@@ -47,7 +66,10 @@ def main():
     parser.add_argument("--log_dir", type=Path, default=ROOT / "logs/seed_runs")
     parser.add_argument("--seeds", type=int, nargs="+", default=list(range(11)))
     parser.add_argument("--epochs", type=int, help="Override only for debugging")
+    parser.add_argument("--mpgformer_variant", choices=MPGFORMER_VARIANTS, default="full")
     args = parser.parse_args()
+    if args.mpgformer_variant != "full" and args.models != ["MPGFormer"]:
+        parser.error("An MPGFormer variant requires --models MPGFormer")
     if len(set(args.seeds)) != len(args.seeds) or any(seed < 0 for seed in args.seeds):
         parser.error("Seeds must be distinct nonnegative integers")
     if args.epochs is not None and args.epochs <= 0:
@@ -58,6 +80,8 @@ def main():
     if missing:
         parser.error("Missing processed data: " + ", ".join(missing))
     output = args.log_dir / args.dataset
+    if args.mpgformer_variant != "full":
+        output /= args.mpgformer_variant
     output.mkdir(parents=True, exist_ok=True)
     records = []
     for model in args.models:
@@ -74,6 +98,7 @@ def main():
             if model == "MPGFormer":
                 command += ["--static_start", str(channels), "--enc_len", "48",
                             "--label_len", "12", "--pred_len", "24"]
+                command += MPGFORMER_VARIANTS[args.mpgformer_variant]
             if val:
                 command += ["--val_data", str(args.data_dir / val)]
             if test:
@@ -97,6 +122,8 @@ def main():
             if (metrics[0].get("model") != model or metrics[0].get("seed") != seed
                     or metrics[0].get("dataset") != expected_dataset):
                 raise RuntimeError(f"{model} seed {seed} reported inconsistent metrics; inspect {log_path}")
+            if model == "MPGFormer":
+                metrics[0]["variant"] = args.mpgformer_variant
             records.extend(metrics)
             (output / "runs.jsonl").write_text("".join(json.dumps(item, sort_keys=True) + "\n" for item in records))
     print(f"Wrote {len(records)} test records to {output / 'runs.jsonl'}")
