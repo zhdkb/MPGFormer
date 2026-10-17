@@ -7,13 +7,7 @@ import torch.nn as nn
 
 
 class TargetRevIN(nn.Module):
-    """Reversible instance normalization applied only to the target channel.
-
-    Cloud workloads often shift their scale between machines or time periods.
-    Normalizing the target history per window keeps the encoder numerically
-    stable, while the final denormalization keeps the forecast on the original
-    scale expected by the loss and evaluation pipeline.
-    """
+    """Normalize the target per window and restore the output scale."""
 
     def __init__(self, target_index: int = 0, eps: float = 1e-5):
         super().__init__()

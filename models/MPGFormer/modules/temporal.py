@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 
 class PositionalEncoding(nn.Module):
-    """Classic sinusoidal position encoding for sequence order awareness."""
+    """Add sinusoidal position encodings."""
 
     def __init__(self, d_model: int, max_len: int = 4096):
         super().__init__()
@@ -29,12 +29,11 @@ class PositionalEncoding(nn.Module):
 
 
 class MovingAverageDecomposition(nn.Module):
-    """Separate a sequence into seasonal residual and smooth trend parts."""
+    """Split a sequence into residual and moving-average trend."""
 
     def __init__(self, kernel_size: int = 25):
         super().__init__()
 
-        # Keep the average centered around every timestamp.
         self.kernel_size = kernel_size if kernel_size % 2 == 1 else kernel_size + 1
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -48,7 +47,7 @@ class MovingAverageDecomposition(nn.Module):
 
 
 class StaticContextSelector(nn.Module):
-    """Inject static machine/context features into temporal tokens when present."""
+    """Gate static features into temporal tokens."""
 
     def __init__(self, d_model: int, static_dim: int, dropout: float):
         super().__init__()
@@ -64,17 +63,15 @@ class StaticContextSelector(nn.Module):
         if not self.enabled or static_context is None:
             return x
 
-        # Query-dependent gating lets each timestamp use a different static bias.
         score = torch.softmax(self.query(x), dim=-1)
         value = self.value(static_context).unsqueeze(1)
         return self.norm(x + self.dropout(score * value))
 
 
 class NonStationaryAttentionLayer(nn.Module):
-    """Self-attention layer modulated by target-window statistics.
+    """Scale each attention head using pre-RevIN target statistics.
 
-    A positive per-head scale is generated from pre-RevIN target statistics.
-    Queries, keys, and values still come from the normalized history states.
+    Queries, keys, and values are computed from encoder states.
     """
 
     def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float, moving_avg: int,
@@ -91,7 +88,6 @@ class NonStationaryAttentionLayer(nn.Module):
         self.qkv = nn.Linear(d_model, d_model * 3)
         self.out = nn.Linear(d_model, d_model)
 
-        # Produce one positive inverse-temperature scale for each attention head.
         self.factor = nn.Sequential(
             nn.Linear(4, d_model),
             nn.GELU(),
@@ -145,7 +141,6 @@ class NonStationaryAttentionLayer(nn.Module):
         context = torch.matmul(self.dropout(attn), v).transpose(1, 2).contiguous()
         context = context.view(bsz, seq_len, self.d_model)
 
-        # Trend information is retained as a small residual bias.
         seasonal, trend = self.decomp(x)
         x = self.norm1(x + self.dropout(self.out(context)) + 0.1 * trend)
         x = self.norm2(x + self.dropout(self.ff(seasonal + x)))
@@ -159,7 +154,7 @@ class NonStationaryAttentionLayer(nn.Module):
 
 
 class ShortTermTemporalEncoder(nn.Module):
-    """Capture short bursts with convolutions and recurrent state."""
+    """Combine short convolutions with a bidirectional GRU."""
 
     def __init__(self, d_model: int, dropout: float):
         super().__init__()

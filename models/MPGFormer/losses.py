@@ -36,11 +36,7 @@ def peak_underestimate_loss(point: torch.Tensor, target: torch.Tensor, ratio: fl
 
 
 def residual_tail_mse_loss(point: torch.Tensor, target: torch.Tensor, ratio: float = 0.9) -> torch.Tensor:
-    """MSE over the largest residuals in the batch.
-
-    This term is useful for sparse cloud workloads: MAE can look excellent when
-    most targets are near zero, but a few missed bursts dominate raw MSE.
-    """
+    """Compute MSE over the largest absolute residuals in the batch."""
 
     if target.numel() == 0:
         return point.new_zeros(())
@@ -105,7 +101,6 @@ class MPGFormerLoss(nn.Module):
         if contrastive is None:
             contrastive = point.new_zeros(())
 
-        # MAE keeps the main forecast robust, while MSE still discourages large misses.
         mae = F.l1_loss(point, target)
         mse = F.mse_loss(point, target)
         qloss = quantile_loss(quantiles, target, self.quantiles)

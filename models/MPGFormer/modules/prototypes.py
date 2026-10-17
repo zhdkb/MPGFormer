@@ -9,11 +9,7 @@ import torch.nn.functional as F
 
 
 class MultiScaleTimeFrequencyBank(nn.Module):
-    """Summarize workload history with patch and frequency prototypes.
-
-    For each patch size, the module embeds target patches and FFT magnitudes,
-    retrieves prototypes, and predicts decoder padding.
-    """
+    """Retrieve prototypes from target patches and their FFT magnitudes."""
 
     def __init__(
         self,

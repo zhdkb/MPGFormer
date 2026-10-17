@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 
 class GraphConvolution(nn.Module):
-    """A light residual graph convolution over batch-level workload nodes."""
+    """Apply a residual graph convolution to batch nodes."""
 
     def __init__(self, d_model: int, dropout: float):
         super().__init__()
@@ -22,13 +22,7 @@ class GraphConvolution(nn.Module):
 
 
 class DynamicGraphContrastiveEncoder(nn.Module):
-    """Build two adaptive graphs and align their encoded views.
-
-    The workload graph is based on target-history similarity. The context graph
-    uses static machine features when available, otherwise compact state
-    statistics. A symmetric contrastive loss encourages both graph views to
-    represent the same series consistently.
-    """
+    """Build workload and context graphs within a batch."""
 
     def __init__(self, d_model: int, static_dim: int, dropout: float, topk: int = 8, temperature: float = 0.5):
         super().__init__()
@@ -60,7 +54,6 @@ class DynamicGraphContrastiveEncoder(nn.Module):
         else:
             adj = torch.zeros_like(sim)
 
-        # Add self loops and normalize to make graph aggregation scale-stable.
         adj = adj + torch.eye(bsz, device=features.device, dtype=features.dtype)
         adj = adj / adj.sum(dim=-1, keepdim=True).clamp_min(1e-6)
         return adj
@@ -105,8 +98,8 @@ class DynamicGraphContrastiveEncoder(nn.Module):
         """Build workload and context graphs for the current batch.
 
         Workload similarity uses encoder history. Without static metadata,
-        context similarity uses raw history. A single view has zero contrastive
-        loss.
+        context similarity uses ``raw_target_history`` when supplied, otherwise
+        ``target_history``. A single view has zero contrastive loss.
         """
         if not (use_workload_graph or use_context_graph):
             raise ValueError("At least one graph view must be enabled")

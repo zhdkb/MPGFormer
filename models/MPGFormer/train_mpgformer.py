@@ -239,7 +239,6 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
 
-    # Model hyperparameters mirror the other baselines where possible.
     model = MPGFormer(
         input_size=args.input_size,
         enc_seq_len=args.enc_len,
@@ -315,7 +314,6 @@ def main():
             best_epoch = epoch
             torch.save(model.state_dict(), save_dir / "MPGFormer_best.pt")
 
-        # tqdm.write keeps the progress bar readable while preserving exact metric formatting.
         log_fn = getattr(progress, "write", print)
         log_fn(
             f"epoch {epoch:03d} train_loss={train_loss:.16f}, "

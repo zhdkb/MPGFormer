@@ -1,8 +1,4 @@
-"""MPGFormer main model.
-
-This file defines the forecasting pipeline. Component implementations live in
-``modules/`` and share the public model interface defined here.
-"""
+"""MPGFormer forecasting model."""
 
 from typing import Optional, Sequence, Tuple
 
@@ -38,17 +34,10 @@ except ImportError:
 
 
 class MPGFormer(nn.Module):
-    """A drift-aware workload forecasting model.
+    """Forecast one target channel from workload windows.
 
-    MPGFormer combines four complementary signals:
-        1. Non-stationary temporal attention for long-range history.
-        2. Short-term convolution/GRU encoding for bursty workload changes.
-        3. Multi-scale time-frequency prototypes for periodic patterns.
-        4. Dynamic graph contrastive context across workloads in the batch.
-
-    The model keeps the same input/output behavior as the previous single-file
-    implementation: ``forward(..., return_dict=True)`` returns ``MPGFormerOutput``
-    and ``return_dict=False`` returns only the point forecast.
+    ``forward`` returns ``MPGFormerOutput`` by default. Set
+    ``return_dict=False`` to get only the point forecast.
     """
 
     def __init__(
@@ -88,14 +77,12 @@ class MPGFormer(nn.Module):
         self.quantiles = tuple(float(q) for q in quantiles)
         self.use_revin = use_revin and "revin" not in self.disabled_components
 
-        # Input and context adapters.
         self.revin = TargetRevIN(target_index=target_index)
         self.input_proj = nn.Linear(input_size, d_model)
         self.decoder_proj = nn.Linear(input_size, d_model)
         self.pos = PositionalEncoding(d_model)
         self.static_selector = StaticContextSelector(d_model, static_dim, dropout)
 
-        # Temporal encoders: long memory attention followed by burst-sensitive local encoding.
         self.long_layers = nn.ModuleList(
             [NonStationaryAttentionLayer(d_model, n_heads, d_ff, dropout, moving_avg,
                                          use_temperature="temperature" not in self.disabled_components)
@@ -104,7 +91,6 @@ class MPGFormer(nn.Module):
         self.short_encoder = (nn.Identity() if "short_encoder" in self.disabled_components
                               else ShortTermTemporalEncoder(d_model, dropout))
 
-        # Auxiliary experts used by the drift-aware router.
         self.prototype_bank = MultiScaleTimeFrequencyBank(
             d_model=d_model,
             enc_seq_len=enc_seq_len,
@@ -117,7 +103,6 @@ class MPGFormer(nn.Module):
         self.router = DriftAwareRouter(d_model, dropout)
         self.context_proj = nn.Linear(d_model, d_model)
 
-        # Forecast decoder. The decoder receives known labels plus generated future padding.
         dec_layer = nn.TransformerDecoderLayer(
             d_model=d_model,
             nhead=n_heads,
@@ -128,7 +113,7 @@ class MPGFormer(nn.Module):
         )
         self.decoder = nn.TransformerDecoder(dec_layer, num_layers=d_layers)
 
-        # Four channels are predicted: median, lower distance, upper distance, point value.
+        # Head channels: median, lower gap, upper gap, point estimate.
         self.head = nn.Sequential(
             nn.LayerNorm(d_model),
             nn.Linear(d_model, d_model),
@@ -212,11 +197,7 @@ class MPGFormer(nn.Module):
         raw_target_history: torch.Tensor,
         static_context: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Route the three branches using their outputs and raw target history.
-
-        Prototypes and workload graphs use encoder history; the router and
-        fallback context graph use history before RevIN.
-        """
+        """Fuse branch contexts and return their auxiliary outputs."""
 
         use_prototype = "prototype" not in self.disabled_components
         use_workload_graph = "workload_graph" not in self.disabled_components
@@ -302,7 +283,7 @@ class MPGFormer(nn.Module):
         static_context: Optional[torch.Tensor] = None,
         return_dict: bool = True,
     ):
-        """Return forecasts for a window of shape ``[batch, time, features]``."""
+        """Forecast from ``[batch, time, features]`` input windows."""
         if not torch.is_floating_point(x):
             x = x.float()
         if static_context is not None and not torch.is_floating_point(static_context):

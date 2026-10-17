@@ -8,13 +8,7 @@ import torch.nn as nn
 
 
 class DriftAwareRouter(nn.Module):
-    """Route between temporal, graph, and prototype experts.
-
-    The router sees both representation vectors and simple drift features. This
-    keeps the mixture adaptive: stable workloads can lean on temporal memory,
-    while abrupt or uncertain windows can allocate more weight to graph/prototype
-    context.
-    """
+    """Weight temporal, graph, and prototype branches per window."""
 
     def __init__(self, d_model: int, dropout: float):
         super().__init__()
