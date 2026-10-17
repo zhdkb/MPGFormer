@@ -1,15 +1,24 @@
-# Baseline implementations
+# Baselines
 
-The paper's Table 10 lists MPGFormer plus 16 baselines. This directory contains adapted workload entries for DynEformer, Autoformer, Informer, Fremer, iTransformer, PDF, TFEGRU, SOFTS, and MICN. Seven additional architectures are pinned to their authors' upstream repositories as Git submodules directly at `models/baseline/<model>/`. The top-level MIT license applies to this repository's own code; each submodule retains its own terms.
+Each baseline has its model code and a workload training entry in this directory. All entries use the dataset presets and evaluation protocol in [REPRODUCE_ALL_MODELS_COMMANDS.md](../../REPRODUCE_ALL_MODELS_COMMANDS.md).
 
-| Baseline | Upstream source | Pinned commit | Upstream top-level license |
-| --- | --- | --- | --- |
-| PatchTST | [yuqinie98/PatchTST](https://github.com/yuqinie98/PatchTST) | `204c21e` | Apache-2.0 |
-| Non-stationary Transformer | [thuml/Nonstationary_Transformers](https://github.com/thuml/Nonstationary_Transformers) | `c4ec406` | MIT |
-| Pathformer | [decisionintelligence/pathformer](https://github.com/decisionintelligence/pathformer) | `ea85d82` | Not declared |
-| TimeMixer | [kwuking/TimeMixer](https://github.com/kwuking/TimeMixer) | `e246105` | Apache-2.0 |
-| MSGNet | [YoZhibo/MSGNet](https://github.com/YoZhibo/MSGNet) | `953b833` | Not declared |
-| CrossGNN | [hqh0728/CrossGNN](https://github.com/hqh0728/CrossGNN) | `0407abd` | Not declared |
-| TimesNet | [thuml/Time-Series-Library](https://github.com/thuml/Time-Series-Library) | `4e938a1` | MIT |
+| Model | Training entry |
+| --- | --- |
+| Autoformer | `auto_informer/auto_info_workload_main.py` |
+| Informer | `Informer/informer_workload_main.py` |
+| Fremer | `Fremer/fremer_workload_main.py` |
+| iTransformer | `iTransformer/itransformer_workload_main.py` |
+| DynEformer | `DynEformer/dyneformer_main.py` and dataset-specific entries |
+| PDF | `PDF/pdf_workload_main.py` |
+| TFEGRU | `TFEGRU/tfegru_workload_main.py` |
+| SOFTS | `SOFTS/softs_workload_main.py` |
+| MICN | `MICN/micn_workload_main.py` |
+| PatchTST | `PatchTST/patchtst_workload_main.py` |
+| Non-stationary Transformer | `NS_Transformer/ns_transformer_workload_main.py` |
+| Pathformer | `Pathformer/pathformer_workload_main.py` |
+| TimeMixer | `TimeMixer/timemixer_workload_main.py` |
+| MSGNet | `MSGNet/msgnet_workload_main.py` |
+| CrossGNN | `CrossGNN/crossgnn_workload_main.py` |
+| TimesNet | `TimesNet/timesnet_workload_main.py` |
 
-Use `git submodule update --init --recursive` after cloning. [official_runner.py](official_runner.py) maps each upstream model to the workload data, validation checkpoint selection, and inverse-scale test metrics. It loads one upstream project per process because multiple projects use the same Python package names. For CPU-only runs, it substitutes the device allocation string in memory for Pathformer and CrossGNN; the pinned source remains unmodified. The model-specific architecture settings and common defaults are documented in [REPRODUCE_ALL_MODELS_COMMANDS.md](../../REPRODUCE_ALL_MODELS_COMMANDS.md).
+The model directories contain the architecture components needed for forecasting, their local training entry, and source attribution where imported. [workload_runner.py](workload_runner.py) provides shared data preparation and validation-selected evaluation for the entries that use it. Each entry is an independent command and runs in its own process because several architecture modules use the same Python package names.

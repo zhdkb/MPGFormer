@@ -22,7 +22,6 @@ data/                         Processed dataset location
 DATA_GENERATION_GUIDE.md      Dataset preparation instructions
 REPRODUCE_ALL_MODELS_COMMANDS.md  Training commands
 requirements.txt              Python dependencies
-.gitmodules                    Pinned upstream baseline sources
 ```
 
 Large raw datasets and checkpoints are not included. Prepare processed tensors with [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md), and keep them under [data/](data/).
@@ -33,7 +32,6 @@ Large raw datasets and checkpoints are not included. Prepare processed tensors w
 conda create -n MPGFormer python=3.9 -y
 conda activate MPGFormer
 pip install -r requirements.txt
-git submodule update --init --recursive
 ```
 
 Install a CUDA-compatible PyTorch build following the official PyTorch instructions if your environment requires a specific CUDA version.
@@ -106,14 +104,14 @@ Commands for MPGFormer and the included baselines are summarized in [REPRODUCE_A
 
 ## Baselines
 
-The [models/baseline](models/baseline) directory covers all 16 baselines in the paper's complexity table. Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, and MICN have adapted local implementations. PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet use pinned upstream Git submodules directly at their model-named paths and a shared [workload runner](models/baseline/official_runner.py). Clone with `--recurse-submodules` or run the installation command above. The upstream repositories retain their own licenses and authorship; some do not declare a top-level license, so their code is referenced as submodules rather than copied into this repository.
+The [models/baseline](models/baseline) directory contains local code and workload training entries for all 16 baselines in the paper's complexity table: Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, MICN, PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet. Each model has a command in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md). The imported architecture components are attributed in their model directories.
 
 ## Evaluation protocol
 
-Training data alone fits the scalers. Validation MSE selects the checkpoint; the held-out test set is evaluated only once after training. Use the same 11 seed IDs, 0 through 10, for every model and report the mean and sample SD of final test metrics. The [batch runner](scripts/run_official_11_seeds.py) runs the seven pinned upstream baselines; [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md) gives commands for every model and the eight dataset presets.
+Training data alone fits the scalers. Validation MSE selects the checkpoint; the held-out test set is evaluated only once after training. Use the same 11 seed IDs, 0 through 10, for every model and report the mean and sample SD of final test metrics. The [batch runner](scripts/run_baseline_11_seeds.py) runs MPGFormer and the baselines that do not require a prebuilt Global Pool; [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md) gives commands for every model and the eight dataset presets.
 
 Future decoder inputs contain calendar features only; future measured resource covariates are hidden. Evaluation includes the final complete forecasting window and weights the final partial batch by its sample count. Previously generated datasets and metrics should be regenerated with the current preparation and evaluation code.
 
 ## License
 
-The repository's own code is released under the [MIT License](LICENSE). Upstream submodules and public datasets are separate works with their own terms.
+The repository's own code is released under the [MIT License](LICENSE). Imported architecture files retain their source notices and licenses where supplied; see the source notes in their model directories. Public datasets have separate terms.

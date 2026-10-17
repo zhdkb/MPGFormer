@@ -2,10 +2,10 @@ import unittest
 
 import numpy as np
 
-from models.baseline.official_runner import Windows, SOURCES
+from models.baseline.workload_runner import Windows, SOURCES
 
 
-class OfficialBaselineProtocolTest(unittest.TestCase):
+class BaselineProtocolTest(unittest.TestCase):
     def test_complete_model_set_and_calendar_only_future_marks(self):
         self.assertEqual(set(SOURCES), {"PatchTST", "NS-Transformer", "Pathformer",
                                         "TimeMixer", "MSGNet", "CrossGNN", "TimesNet"})

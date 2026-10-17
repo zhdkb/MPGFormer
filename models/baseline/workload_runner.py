@@ -1,4 +1,4 @@
-"""Common workload protocol for the seven pinned upstream baseline implementations.
+"""Common workload data and evaluation protocol for baseline training entries.
 
 Run one model per process because several upstream projects use the same top-level
 ``models`` and ``layers`` package names.
@@ -12,7 +12,7 @@ import pickle
 import random
 import sys
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -26,7 +26,7 @@ from protocol import report_test_metrics, split_workload  # noqa: E402
 
 
 SOURCES = {
-    "PatchTST": ("PatchTST/PatchTST_supervised", "models.PatchTST"),
+    "PatchTST": ("PatchTST", "models.PatchTST"),
     "NS-Transformer": ("NS_Transformer", "ns_models.ns_Transformer"),
     "Pathformer": ("Pathformer", "models.PathFormer"),
     "TimeMixer": ("TimeMixer", "models.TimeMixer"),
@@ -36,35 +36,17 @@ SOURCES = {
 }
 
 
-def load_upstream_model(name, device):
+def load_baseline_model(name):
     relative, module_name = SOURCES[name]
     source = Path(__file__).resolve().parent / relative
     if not source.is_dir() or not any(source.iterdir()):
-        raise RuntimeError("Missing upstream source; run: git submodule update --init --recursive")
+        raise RuntimeError(f"Missing baseline source in {source}")
     sys.path.insert(0, str(source))
-    # Two upstream implementations allocate parameters directly on CUDA during
-    # construction. Apply only the device-string substitution in memory so their
-    # pinned source can also run on a CPU-only host.
-    if device.type == "cpu" and name in {"Pathformer", "CrossGNN"}:
-        file = source / ("models/PathFormer.py" if name == "Pathformer" else "models/CrossGNN.py")
-        original = file.read_text(encoding="utf-8")
-        old = ("torch.device('cuda:{}'.format(configs.gpu))" if name == "Pathformer"
-               else "'cuda:'+str(configs.gpu)")
-        if original.count(old) != 1:
-            raise RuntimeError(f"Upstream device expression changed in {file}")
-        package_name = module_name.rpartition(".")[0]
-        importlib.import_module(package_name)
-        module = ModuleType(module_name)
-        module.__file__ = str(file)
-        module.__package__ = package_name
-        sys.modules[module_name] = module
-        exec(compile(original.replace(old, "torch.device('cpu')"), str(file), "exec"), module.__dict__)
-        return module.Model
     return importlib.import_module(module_name).Model
 
 
-def configuration(args, channels):
-    """Pass the paper's window lengths and explicit architecture settings upstream."""
+def configuration(args, channels, device):
+    """Pass paper window lengths and architecture settings to a baseline."""
     return SimpleNamespace(
         task_name="long_term_forecast", seq_len=args.seq_len,
         label_len=args.label_len, pred_len=args.pred_len,
@@ -85,7 +67,7 @@ def configuration(args, channels):
         propalpha=0.05, node_dim=10, subgraph_size=channels,
         layer_nums=3, k=2, num_experts_list=[4, 4, 4],
         patch_size_list=[[16, 12, 8, 6], [12, 8, 6, 4], [8, 6, 4, 2]],
-        residual_connection=0, batch_norm=0, gpu=args.gpu,
+        residual_connection=0, batch_norm=0, gpu=args.gpu, runtime_device=str(device),
         anti_ood=True, hidden=32, nvechidden=10, tvechidden=10,
         scale_number=3, tk=3, use_ngcn=True, use_tgcn=True,
     )
@@ -201,8 +183,8 @@ def run(args):
         torch.cuda.manual_seed_all(args.seed)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() and not args.cpu else "cpu")
     loaders, scaler = prepare(args)
-    cls = load_upstream_model(args.model, device)
-    model = cls(configuration(args, args.input_size)).float().to(device)
+    cls = load_baseline_model(args.model)
+    model = cls(configuration(args, args.input_size, device)).float().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     best_mse, best_state, best_epoch = float("inf"), None, None
     dataset_id = Path(args.test_data).stem if args.test_data else Path(args.train_data).stem
@@ -235,9 +217,12 @@ def run(args):
     report_test_metrics(args.model, args.seed, args.train_data, args.test_data, mse, mae, smape)
 
 
-def parse_args():
+def parse_args(model=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=SOURCES, required=True)
+    if model is None:
+        parser.add_argument("--model", choices=SOURCES, required=True)
+    else:
+        parser.set_defaults(model=model)
     parser.add_argument("--train_data", required=True)
     parser.add_argument("--test_data", default="")
     parser.add_argument("--val_data", default="")
@@ -258,7 +243,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--cpu", action="store_true")
-    parser.add_argument("--save_dir", default="checkpoints/official_baselines")
+    parser.add_argument("--save_dir", default="checkpoints/baselines")
     return parser.parse_args()
 
 
