@@ -304,5 +304,5 @@ if __name__ == "__main__":
     parser.add_argument("--wo_conv", action="store_true", default=False)
     parser.add_argument("--serial_conv", action="store_true", default=False)
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=2024)
+    parser.add_argument("--seed", type=int, default=0)
     main(parser.parse_args())

@@ -320,5 +320,5 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="regre", choices=["regre", "mean"])
     parser.add_argument("--conv_kernel", type=int, nargs="+", default=[12, 16])
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=2024)
+    parser.add_argument("--seed", type=int, default=0)
     main(parser.parse_args())

@@ -287,6 +287,6 @@ if __name__ == "__main__":
     parser.add_argument("--use_norm", action="store_true", default=True)
     parser.add_argument("--no_use_norm", action="store_false", dest="use_norm")
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=2024)
+    parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--save_dir", type=str, default="saved_model")
     main(parser.parse_args())

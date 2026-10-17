@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--num_epoches", "-e", type=int, default=300)
     parser.add_argument("-lr", type=float, default=1e-4)
-    parser.add_argument("--batch_size", "-b", type=int, default=256)
+    parser.add_argument("--batch_size", "-b", type=int, default=64)
     parser.add_argument("--step", type=int, default=12)
 
     parser.add_argument("--n_encoder_layers", "-nel", type=int, default=2)
@@ -275,5 +275,5 @@ if __name__ == "__main__":
     parser.add_argument("-if_padding", type=bool, default=True)
     parser.add_argument("--save_model", "-sm", type=bool, default=True)
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=2)
+    parser.add_argument("--seed", type=int, default=0)
     train(parser.parse_args())

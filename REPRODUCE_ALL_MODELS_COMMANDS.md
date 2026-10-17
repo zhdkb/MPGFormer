@@ -420,7 +420,12 @@ PYTHONPATH="$REPO" python global_pooling_main.py \
   --source_train_ratio 0.64
 
 cd "$REPO/models/baseline/DynEformer"
-PYTHONPATH="$REPO" python dyneformer_main.py --num_epoches 300 --batch_size 256 --seed "$SEED"
+PYTHONPATH="$REPO" python dyneformer_main.py \
+  --data "$TRAIN" \
+  --num_epoches "$EPOCHS" \
+  --batch_size "$BATCH" \
+  --test_step "$TEST_STEP" \
+  --seed "$SEED"
 ```
 
 ### New Infras. and New App

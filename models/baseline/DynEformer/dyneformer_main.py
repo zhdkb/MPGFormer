@@ -208,8 +208,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--num_epoches", "-e", type=int, default=300)
     parser.add_argument("-lr", type=float, default=1e-4)
-    parser.add_argument("--batch_size", "-b", type=int, default=256)
-    parser.add_argument("--seed", type=int, default=2)
+    parser.add_argument("--batch_size", "-b", type=int, default=64)
+    parser.add_argument("--seed", type=int, default=0)
 
     parser.add_argument("--n_encoder_layers", "-nel", type=int, default=2)
     parser.add_argument("--n_decoder_layers", "-ndl", type=int, default=1)
