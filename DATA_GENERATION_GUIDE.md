@@ -73,7 +73,8 @@ python scripts/prepare_azure_vm_dataset.py \
   --download true \
   --num_files 1 \
   --max_segments 800 \
-  --train_ratio 0.8
+  --train_ratio 0.8 \
+  --seed 2
 ```
 
 Offline preprocessing, if the `.csv.gz` files have already been placed in `external/azure_vm_cpu_readings/`:
@@ -84,7 +85,8 @@ python scripts/prepare_azure_vm_dataset.py \
   --download false \
   --num_files 1 \
   --max_segments 800 \
-  --train_ratio 0.8
+  --train_ratio 0.8 \
+  --seed 2
 ```
 
 Expected outputs:
@@ -107,7 +109,8 @@ python scripts/prepare_google_cluster_dataset.py \
   --download true \
   --raw_path external/google_cluster_data_raw/google-cluster-data-1.csv.gz \
   --max_series 800 \
-  --train_ratio 0.8
+  --train_ratio 0.8 \
+  --seed 2
 ```
 
 Offline preprocessing, if the raw file has already been downloaded:
@@ -117,7 +120,8 @@ python scripts/prepare_google_cluster_dataset.py \
   --download false \
   --raw_path external/google_cluster_data_raw/google-cluster-data-1.csv.gz \
   --max_series 800 \
-  --train_ratio 0.8
+  --train_ratio 0.8 \
+  --seed 2
 ```
 
 Expected outputs:

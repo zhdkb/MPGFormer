@@ -523,6 +523,10 @@ python scripts/summarize_seed_runs.py logs/seed_runs/MT2/runs.jsonl
 
 The batch runner accepts `--models` for selected models. It uses the dataset presets above and seed IDs 0 through 10 by default. DynEformer uses the Global Pool preparation commands in Section 4 before its per-seed runs.
 
+The decoder label length is 12 for models with a decoder. Encoder-only baselines use the same 48-point history and 24-point horizon.
+
+Autoformer and Informer use target history with calendar time marks. The other baseline adapters use the first `INPUT_SIZE` history channels; DynEformer also reads ECW static context. These are the inputs used by the training entries in this repository.
+
 - Prepare datasets first with [DATA_GENERATION_GUIDE.md](DATA_GENERATION_GUIDE.md).
 - Training entries fit scalers on their training partitions. Validation MSE selects the checkpoint, followed by one test evaluation. DynEformer's global pool is fitted on the training partition.
 - ECW uses chronological 64/16/20 train/validation/test; New Infras. and New App use an 80/20 source-trace train/validation split plus a separate test trace. Azure and Google reserve 20% of training series IDs (fixed split seed 0). Materna uses its separate 70/10/20 train/validation/test files.
@@ -532,5 +536,5 @@ The batch runner accepts `--models` for selected models. It uses the dataset pre
 - All scripts report MSE, MAE, and SMAPE on the inverse-scaled workload target.
 - Only calendar fields (columns 1 through 3) are treated as known future covariates. Measured resource fields are hidden at forecast time.
 - Regenerate processed data and all paper metrics after changes to data preparation or evaluation code. The repository does not contain the raw eleven-seed results required to verify the paper's tables or paired intervals.
-- Azure target scaling follows the same convention across MPGFormer and baselines.
+- Azure targets are divided by 10 before fitting the training scaler for MPGFormer and every baseline. Inverse scaling retains that fixed unit conversion; Azure MAE and MSE are therefore in target/10 units.
 - Use smaller `EPOCHS` for quick debugging, but keep the listed values for paper reproduction.

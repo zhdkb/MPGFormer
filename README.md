@@ -104,13 +104,15 @@ Commands for MPGFormer and the included baselines are summarized in [REPRODUCE_A
 
 ## Baselines
 
-The [models/baseline](models/baseline) directory contains local code and workload training entries for all 16 baselines in the paper's complexity table: Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, MICN, PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet. Each model has a command in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md). The imported architecture components are attributed in their model directories.
+The [models/baseline](models/baseline) directory contains local code and workload training entries for all 16 baselines in the paper's main and appendix comparisons: Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, MICN, PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet. Each model has a command in [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md). The imported architecture components are attributed in their model directories.
 
 ## Evaluation protocol
 
 Training data alone fits the scalers. Validation MSE selects the checkpoint; the held-out test set is evaluated only once after training. Use the same 11 seed IDs, 0 through 10, for every model and report the mean and sample SD of final test metrics. The [batch runner](scripts/run_baseline_11_seeds.py) runs MPGFormer and the baselines that do not require a prebuilt Global Pool; [REPRODUCE_ALL_MODELS_COMMANDS.md](REPRODUCE_ALL_MODELS_COMMANDS.md) gives commands for every model and the eight dataset presets.
 
 Future decoder inputs contain calendar features only; future measured resource covariates are hidden. Evaluation includes the final complete forecasting window and weights the final partial batch by its sample count. Previously generated datasets and metrics should be regenerated with the current preparation and evaluation code.
+
+Azure target values are divided by 10 before fitting the training scaler. Inverse scaling removes the fitted scaler but retains this fixed unit conversion, so reported Azure MAE and MSE use target/10 units.
 
 ## License
 
