@@ -66,7 +66,7 @@ class DynamicGraphContrastiveEncoder(nn.Module):
         return adj
 
     def _state_features(self, target_history: torch.Tensor) -> torch.Tensor:
-        """Summarize target state when static metadata is unavailable."""
+        """Use window statistics when static features are unavailable."""
 
         diff = target_history[:, 1:] - target_history[:, :-1]
         return torch.stack(
@@ -102,13 +102,11 @@ class DynamicGraphContrastiveEncoder(nn.Module):
         use_context_graph: bool = True,
         raw_target_history: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Return graph context, two-view loss, and the enabled-view adjacency.
+        """Build workload and context graphs for the current batch.
 
-        ``target_history`` follows the encoder path (normally RevIN-normalized)
-        for workload similarity. When given, ``raw_target_history`` supplies
-        fallback context-state features.
-        A single enabled view has no contrastive counterpart, so its alignment
-        loss is zero.
+        Workload similarity uses encoder history. Without static metadata,
+        context similarity uses raw history. A single view has zero contrastive
+        loss.
         """
         if not (use_workload_graph or use_context_graph):
             raise ValueError("At least one graph view must be enabled")

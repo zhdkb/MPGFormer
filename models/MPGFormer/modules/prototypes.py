@@ -11,10 +11,8 @@ import torch.nn.functional as F
 class MultiScaleTimeFrequencyBank(nn.Module):
     """Summarize workload history with patch and frequency prototypes.
 
-    Each patch size describes a different operational rhythm. The module maps
-    target patches and their FFT magnitudes into scale tokens,
-    attends over learnable prototype memory, and emits a context vector and
-    target padding estimate for the decoder horizon.
+    For each patch size, the module embeds target patches and FFT magnitudes,
+    retrieves prototypes, and predicts decoder padding.
     """
 
     def __init__(
@@ -59,7 +57,7 @@ class MultiScaleTimeFrequencyBank(nn.Module):
         return target_history.unfold(dimension=1, size=patch, step=patch)
 
     def scale_tokens(self, target_history: torch.Tensor) -> torch.Tensor:
-        """Build one token per scale from target patches and FFT magnitudes."""
+        """Combine patch values and FFT magnitudes at each scale."""
 
         tokens = []
         for patch, p_linear, f_linear in zip(self.patch_sizes, self.patch_linears, self.freq_linears):
@@ -74,7 +72,6 @@ class MultiScaleTimeFrequencyBank(nn.Module):
         return torch.stack(tokens, dim=1)
 
     def forward(self, target_history: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Return prototype context, future padding, assignments, and scale weights."""
         scale_tokens = self.scale_tokens(target_history)
 
         # Learned scale weights decide whether short, medium, or long rhythms dominate.

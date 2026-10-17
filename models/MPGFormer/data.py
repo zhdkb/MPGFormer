@@ -65,7 +65,6 @@ class MPGFormerWindowDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int):
-        """Return masked model input, optional static context, target, and series ID."""
         x, y, series_id = self.samples[idx]
         x = torch.from_numpy(x).float()
         y = torch.from_numpy(y).float()

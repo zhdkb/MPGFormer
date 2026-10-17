@@ -111,12 +111,7 @@ class NonStationaryAttentionLayer(nn.Module):
 
     @staticmethod
     def raw_window_statistics(raw_target_history: torch.Tensor) -> torch.Tensor:
-        """Return four pre-RevIN descriptors for each target-history window.
-
-        The slope is the least-squares coefficient against time steps 0..L-1;
-        output columns are mean, population standard deviation, slope, and
-        mean absolute first difference, in that order.
-        """
+        """Return mean, std, least-squares slope, and mean absolute difference."""
         if raw_target_history.ndim != 2 or raw_target_history.size(1) < 2:
             raise ValueError("raw_target_history must have shape [batch, length >= 2]")
         length = raw_target_history.size(1)
@@ -131,7 +126,6 @@ class NonStationaryAttentionLayer(nn.Module):
         return torch.stack((mean, scale, slope, first_difference), dim=-1)
 
     def forward(self, x: torch.Tensor, raw_target_history: torch.Tensor) -> torch.Tensor:
-        """Attend over encoder states with scales derived from raw history."""
         bsz, seq_len, _ = x.shape
 
         if self.use_temperature:

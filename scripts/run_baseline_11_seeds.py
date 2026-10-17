@@ -9,8 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-# Each entry gives the working directory, training script, epoch flag, and
-# whether that script requires an explicit input-size flag.
+# Directory, entry point, epoch flag, and input-size flag requirement.
 ENTRIES = {
     "MPGFormer": ("models/MPGFormer", "train_mpgformer.py", "epochs", False),
     "Autoformer": ("models/baseline/auto_informer", "auto_info_workload_main.py", "train_epochs", False),
@@ -39,8 +38,7 @@ DATASETS = {
     "MT2": ("tr_materna_mt2.npy", "va_materna_mt2.npy", "te_materna_mt2.npy", 10, 30, 64, 12),
     "MT3": ("tr_materna_mt3.npy", "va_materna_mt3.npy", "te_materna_mt3.npy", 10, 30, 64, 12),
 }
-# Variants map paper ablations to MPGFormer training arguments. A variant's
-# logs use a separate directory so its runs cannot replace full-model records.
+# Keep ablation runs in separate log directories.
 MPGFORMER_VARIANTS = {
     "full": (),
     "no_revin": ("--disable", "revin"),
@@ -63,7 +61,6 @@ MPGFORMER_VARIANTS = {
 
 
 def main():
-    """Run matched seeds, accepting only one final test record per run."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", choices=DATASETS, required=True)
     parser.add_argument("--models", nargs="+", choices=ENTRIES, default=list(ENTRIES))
@@ -124,7 +121,6 @@ def main():
             if returncode or len(metrics) != 1:
                 raise RuntimeError(f"{model} seed {seed} failed; inspect {log_path}")
             expected_dataset = Path(test).stem if test else "ECW"
-            # A mislabeled or duplicate test record must not enter paired summaries.
             if (metrics[0].get("model") != model or metrics[0].get("seed") != seed
                     or metrics[0].get("dataset") != expected_dataset):
                 raise RuntimeError(f"{model} seed {seed} reported inconsistent metrics; inspect {log_path}")
