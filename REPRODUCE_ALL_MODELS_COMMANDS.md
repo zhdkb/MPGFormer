@@ -279,7 +279,7 @@ PYTHONPATH="$REPO" python micn_workload_main.py \
 
 ## 4. Seven Pinned Upstream Baselines
 
-The official PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet repositories are pinned as Git submodules under `models/baseline/*/official`. TimesNet's authors maintain its implementation in their Time-Series-Library repository. The local runner adapts their model interfaces to the workload tensors while preserving their architecture code and source attribution. Each model must run in a separate process because upstream repositories reuse package names such as `models` and `layers`.
+The official PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet repositories are pinned as Git submodules directly at `models/baseline/<model>/`. TimesNet's authors maintain its implementation in their Time-Series-Library repository. The local runner adapts their model interfaces to the workload tensors while preserving their architecture code and source attribution. Each model must run in a separate process because upstream repositories reuse package names such as `models` and `layers`.
 
 After selecting a dataset preset, run any one of these model names: `PatchTST`, `NS-Transformer`, `Pathformer`, `TimeMixer`, `MSGNet`, `CrossGNN`, or `TimesNet`.
 

@@ -26,13 +26,13 @@ from protocol import report_test_metrics, split_workload  # noqa: E402
 
 
 SOURCES = {
-    "PatchTST": ("PatchTST/official/PatchTST_supervised", "models.PatchTST"),
-    "NS-Transformer": ("NS_Transformer/official", "ns_models.ns_Transformer"),
-    "Pathformer": ("Pathformer/official", "models.PathFormer"),
-    "TimeMixer": ("TimeMixer/official", "models.TimeMixer"),
-    "MSGNet": ("MSGNet/official", "models.MSGNet"),
-    "CrossGNN": ("CrossGNN/official", "models.CrossGNN"),
-    "TimesNet": ("TimesNet/official", "models.TimesNet"),
+    "PatchTST": ("PatchTST/PatchTST_supervised", "models.PatchTST"),
+    "NS-Transformer": ("NS_Transformer", "ns_models.ns_Transformer"),
+    "Pathformer": ("Pathformer", "models.PathFormer"),
+    "TimeMixer": ("TimeMixer", "models.TimeMixer"),
+    "MSGNet": ("MSGNet", "models.MSGNet"),
+    "CrossGNN": ("CrossGNN", "models.CrossGNN"),
+    "TimesNet": ("TimesNet", "models.TimesNet"),
 }
 
 

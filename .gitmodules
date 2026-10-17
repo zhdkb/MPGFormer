@@ -1,21 +1,21 @@
-[submodule "models/baseline/PatchTST/official"]
-	path = models/baseline/PatchTST/official
+[submodule "models/baseline/PatchTST"]
+	path = models/baseline/PatchTST
 	url = https://github.com/yuqinie98/PatchTST.git
-[submodule "models/baseline/NS_Transformer/official"]
-	path = models/baseline/NS_Transformer/official
+[submodule "models/baseline/NS_Transformer"]
+	path = models/baseline/NS_Transformer
 	url = https://github.com/thuml/Nonstationary_Transformers.git
-[submodule "models/baseline/Pathformer/official"]
-	path = models/baseline/Pathformer/official
+[submodule "models/baseline/Pathformer"]
+	path = models/baseline/Pathformer
 	url = https://github.com/decisionintelligence/pathformer.git
-[submodule "models/baseline/TimeMixer/official"]
-	path = models/baseline/TimeMixer/official
+[submodule "models/baseline/TimeMixer"]
+	path = models/baseline/TimeMixer
 	url = https://github.com/kwuking/TimeMixer.git
-[submodule "models/baseline/MSGNet/official"]
-	path = models/baseline/MSGNet/official
+[submodule "models/baseline/MSGNet"]
+	path = models/baseline/MSGNet
 	url = https://github.com/YoZhibo/MSGNet.git
-[submodule "models/baseline/CrossGNN/official"]
-	path = models/baseline/CrossGNN/official
+[submodule "models/baseline/CrossGNN"]
+	path = models/baseline/CrossGNN
 	url = https://github.com/hqh0728/CrossGNN.git
-[submodule "models/baseline/TimesNet/official"]
-	path = models/baseline/TimesNet/official
+[submodule "models/baseline/TimesNet"]
+	path = models/baseline/TimesNet
 	url = https://github.com/thuml/Time-Series-Library.git

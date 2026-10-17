@@ -1,6 +1,6 @@
 # Baseline implementations
 
-The paper's Table 10 lists MPGFormer plus 16 baselines. This directory contains adapted workload entries for DynEformer, Autoformer, Informer, Fremer, iTransformer, PDF, TFEGRU, SOFTS, and MICN. Seven additional architectures are pinned to their authors' upstream repositories as Git submodules. The top-level MIT license applies to this repository's own code; each submodule retains its own terms.
+The paper's Table 10 lists MPGFormer plus 16 baselines. This directory contains adapted workload entries for DynEformer, Autoformer, Informer, Fremer, iTransformer, PDF, TFEGRU, SOFTS, and MICN. Seven additional architectures are pinned to their authors' upstream repositories as Git submodules directly at `models/baseline/<model>/`. The top-level MIT license applies to this repository's own code; each submodule retains its own terms.
 
 | Baseline | Upstream source | Pinned commit | Upstream top-level license |
 | --- | --- | --- | --- |

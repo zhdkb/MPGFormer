@@ -106,7 +106,7 @@ Commands for MPGFormer and the included baselines are summarized in [REPRODUCE_A
 
 ## Baselines
 
-The [models/baseline](models/baseline) directory covers all 16 baselines in the paper's complexity table. Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, and MICN have adapted local implementations. PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet use pinned upstream Git submodules and a shared [workload runner](models/baseline/official_runner.py). Clone with `--recurse-submodules` or run the installation command above. The upstream repositories retain their own licenses and authorship; some do not declare a top-level license, so their code is referenced as submodules rather than copied into this repository.
+The [models/baseline](models/baseline) directory covers all 16 baselines in the paper's complexity table. Autoformer, Informer, Fremer, iTransformer, DynEformer, PDF, TFEGRU, SOFTS, and MICN have adapted local implementations. PatchTST, Non-stationary Transformer, Pathformer, TimeMixer, MSGNet, CrossGNN, and TimesNet use pinned upstream Git submodules directly at their model-named paths and a shared [workload runner](models/baseline/official_runner.py). Clone with `--recurse-submodules` or run the installation command above. The upstream repositories retain their own licenses and authorship; some do not declare a top-level license, so their code is referenced as submodules rather than copied into this repository.
 
 ## Evaluation protocol
 
