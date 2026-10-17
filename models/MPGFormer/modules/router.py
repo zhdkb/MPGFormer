@@ -38,6 +38,12 @@ class DriftAwareRouter(nn.Module):
         use_drift_bias: bool = True,
         fixed_average: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Return expert weights and drift score from raw target-history cues.
+
+        The three expert positions are temporal, graph, and prototype. Ablation
+        options can suppress individual cues, mask absent experts, or average
+        the remaining experts with fixed weights.
+        """
         diff = target_history[:, 1:] - target_history[:, :-1]
 
         # High entropy means the prototype bank is uncertain about the current pattern.

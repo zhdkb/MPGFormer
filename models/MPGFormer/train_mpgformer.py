@@ -45,7 +45,11 @@ def load_array(path):
 
 
 def scale_dynamic(train, test, feature_count, target_col=0):
-    """Scale dynamic features and keep a separate target scaler for evaluation."""
+    """Fit dynamic and target scalers on training data, then transform test data.
+
+    The returned feature scaler also transforms validation data in ``main``.
+    Static columns are copied without scaling.
+    """
 
     scaler = preprocessing.MinMaxScaler()
     target_scaler = preprocessing.MinMaxScaler()
@@ -101,7 +105,7 @@ def get_smape(y_true, y_pred, target_scaler):
 
 
 def evaluate(model, loader, criterion, device, static_dim, target_scaler):
-    """Evaluate validation loss and inverse-scaled metrics."""
+    """Return sample-weighted training-scale loss and original-scale metrics."""
 
     model.eval()
     losses, mses, maes, smapes = [], [], [], []
@@ -125,7 +129,7 @@ def evaluate(model, loader, criterion, device, static_dim, target_scaler):
 
 
 def main():
-    """Train MPGFormer on a workload dataset."""
+    """Train MPGFormer, select by validation MSE, then evaluate the test once."""
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default="../../data/ECW_08.npy")
@@ -196,6 +200,7 @@ def main():
     print(f"test data: {test_raw.shape}")
 
     train_raw, test_raw, feature_scaler, target_scaler = scale_dynamic(train_raw, test_raw, args.input_size)
+    # Reuse the training-fitted scaler; validation must not refit statistics.
     val_raw[:, :, :args.input_size] = feature_scaler.transform(
         val_raw[:, :, :args.input_size].reshape(-1, args.input_size)
     ).reshape(val_raw.shape[0], val_raw.shape[1], args.input_size)

@@ -12,6 +12,7 @@ from scipy import stats
 
 
 def read_records(paths):
+    """Read unique finite test records from logs or JSONL files."""
     records = {}
     for path in paths:
         with open(path, encoding="utf-8") as stream:
@@ -46,6 +47,7 @@ def holm_adjust(pvalues):
 
 
 def summarize(records, baseline=None, metric="mae", model=None):
+    """Report 11-seed mean/SD and optional baseline-minus-model paired tests."""
     groups = defaultdict(dict)
     for (dataset, model_name, seed), record in records.items():
         groups[(dataset, model_name)][seed] = float(record[metric])

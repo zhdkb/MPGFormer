@@ -7,6 +7,12 @@ import numpy as np
 
 
 def split_workload(train, train_path, test=None, validation=None, split_seed=0):
+    """Construct train, validation, and test arrays for each dataset layout.
+
+    Explicit files take precedence. ECW uses chronological slices; new ECW
+    traces reserve the independent file for testing; Azure and Google hold out
+    source series with a fixed split seed. Model seeds never change the split.
+    """
     train = np.asarray(train)
     if train.ndim != 3:
         raise ValueError("Expected a [series, time, features] training array")
@@ -38,7 +44,11 @@ def split_workload(train, train_path, test=None, validation=None, split_seed=0):
 
 
 def pool_training_partition(data, train_path, split_seed=0, source_train_ratio=None):
-    """Return the training observations used to fit a DynEformer global pool."""
+    """Return only training observations for the DynEformer global pool.
+
+    The selection mirrors ``split_workload`` so validation and test data cannot
+    enter the pool, including when the holdout is by source-series identity.
+    """
     data = np.asarray(data)
     if data.ndim != 3:
         raise ValueError("Expected a [series, time, features] array")

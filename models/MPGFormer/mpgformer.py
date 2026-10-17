@@ -142,7 +142,11 @@ class MPGFormer(nn.Module):
         )
 
     def _split_inputs(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Split the model input into encoder history and decoder sequence."""
+        """Build encoder history and a decoder sequence with masked future targets.
+
+        The decoder retains the last ``label_len`` observations and any known
+        future covariates. Forecast targets are never read from future input.
+        """
 
         bsz, total_len, feat = x.shape
         if feat != self.input_size:
@@ -173,7 +177,7 @@ class MPGFormer(nn.Module):
         enc_raw: torch.Tensor,
         dec_raw: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """Apply target RevIN when enabled and keep statistics for output recovery."""
+        """Normalize only the target channel and retain inverse-transform stats."""
 
         if not self.use_revin:
             return enc_raw, dec_raw, None, None
@@ -192,7 +196,11 @@ class MPGFormer(nn.Module):
         raw_target_history: torch.Tensor,
         static_context: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Encode historical workload tokens and return their global summary."""
+        """Encode history tokens using attention scales from raw target history.
+
+        Return sequence states, target history for other branches,
+        and the pooled temporal expert context.
+        """
 
         target_history = enc_input[..., self.target_index]
         encoded = self.pos(self.input_proj(enc_input))
@@ -212,7 +220,13 @@ class MPGFormer(nn.Module):
         raw_target_history: torch.Tensor,
         static_context: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Compute prototype/graph experts and combine them with drift-aware routing."""
+        """Fuse temporal, prototype, and graph evidence for each window.
+
+        Prototypes and workload similarity use encoder target history, which is
+        normalized when RevIN is enabled. Drift cues and fallback context-graph
+        statistics use the pre-RevIN target history.
+        Fully disabled experts contribute zero and receive no routing weight.
+        """
 
         use_prototype = "prototype" not in self.disabled_components
         use_workload_graph = "workload_graph" not in self.disabled_components
@@ -264,7 +278,7 @@ class MPGFormer(nn.Module):
         future_padding: torch.Tensor,
         static_context: Optional[torch.Tensor],
     ) -> torch.Tensor:
-        """Decode the prediction horizon with the fused expert context."""
+        """Decode future tokens using prototype padding and fused encoder memory."""
 
         dec_input = dec_input.clone()
         dec_input[:, -self.pred_len :, self.target_index] = future_padding
@@ -298,6 +312,12 @@ class MPGFormer(nn.Module):
         static_context: Optional[torch.Tensor] = None,
         return_dict: bool = True,
     ):
+        """Forecast from a masked window and optional static context.
+
+        Standard ``x`` has shape ``[batch, enc_seq_len + pred_len, input_size]``.
+        Return ``MPGFormerOutput`` by default or only point forecasts when
+        ``return_dict`` is false. Predictions are restored to the input scale.
+        """
         if not torch.is_floating_point(x):
             x = x.float()
         if static_context is not None and not torch.is_floating_point(static_context):

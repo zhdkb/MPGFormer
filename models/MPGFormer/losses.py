@@ -98,6 +98,11 @@ class MPGFormerLoss(nn.Module):
         self.target_tail_mse_ratio = target_tail_mse_ratio
 
     def forward(self, output, target: torch.Tensor) -> Tuple[torch.Tensor, dict]:
+        """Compute the weighted paper objective and detached diagnostic terms.
+
+        The target and point predictions are on the training target scale;
+        metric inverse-scaling happens only in the evaluation path.
+        """
         point = output.point if hasattr(output, "point") else output["point"]
         quantiles = output.quantiles if hasattr(output, "quantiles") else output["quantiles"]
         contrastive = output.contrastive_loss if hasattr(output, "contrastive_loss") else output.get("contrastive_loss")
